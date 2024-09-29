@@ -50,16 +50,17 @@ CREATE TABLE `cart` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
   `user_id` INT,
   `product_id` INT,
-  `quanity` INT,
+  `quantity` INT,
   `created_at` DATETIME DEFAULT NOW()
 );
 
-CREATE TABLE `order` (
+CREATE TABLE `orders` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
   `user_id` INT NOT NULL,
   `total_money` DECIMAL(10,2) NOT NULL,
   `order_date` DATETIME,
   `status` VARCHAR(50) NOT NULL,
+  `description` VARCHAR(255),
   `created_at` DATETIME DEFAULT NOW()
 );
 
@@ -68,7 +69,7 @@ CREATE TABLE `order_detail` (
   `order_id` INT NOT NULL,
   `product_id` INT NOT NULL,
   `quantity` INT NOT NULL,
-  `price` DECIMAL(10,2) NOT NULL,
+  `price` DECIMAL(10,2),
   `created_at` DATETIME DEFAULT NOW()
 );
 

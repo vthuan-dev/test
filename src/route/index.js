@@ -3,6 +3,7 @@ import usersRoutes from "./user";
 import categoryRoutes from "./category";
 import cartRoutes from "./cart";
 import roomRoutes from "./room";
+import orderRoutes from "./order";
 
 export const routes = [
   { ...productRoutes },
@@ -10,4 +11,5 @@ export const routes = [
   { ...categoryRoutes },
   { ...cartRoutes },
   { ...roomRoutes },
+  { ...orderRoutes },
 ];

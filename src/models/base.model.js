@@ -1,4 +1,4 @@
-import { connection } from "../Database";
+import { connection } from "../database";
 import { STATUS } from "../config/status";
 import { ErrorHandler } from "../helpers/response";
 
@@ -82,6 +82,7 @@ class BaseModel {
     const values = data.map((item) => {
       return fields.map((field) => item[field]);
     });
+    console.log("🚀 ~ values:", values);
 
     function getPlaceholders(fields) {
       return "(" + Array(fields).fill("?").join(", ") + ")";
@@ -92,9 +93,11 @@ class BaseModel {
 
     // Lấy ra một mảng các giá trị từ mảng 2D
     const flatValues = values.reduce((acc, val) => acc.concat(val), []);
+    console.log("🚀 ~ flatValues:", flatValues);
 
     const query = `INSERT INTO ${this.table} (${insertField}) VALUES ${placeholders}`;
 
+    console.log("🚀 ~ query:", query);
     return new Promise((resolve, reject) => {
       this.connection.query(query, flatValues, (error, result) => {
         this.hanldeResult(resolve, reject, error, result);
@@ -190,14 +193,15 @@ class BaseModel {
   async deleteMultple(columnValue, listId) {
     const toIdQuery = listId.join(", ");
     const query = ` DELETE FROM ${this.table} WHERE ${columnValue} IN (${toIdQuery})`;
-
-    this.connection.query(query, [...values], (error, result) => {
-      if (error) {
-        reject(error);
-      } else if (result && result?.affectedRows !== 0) {
-        resolve(result);
-      }
-      reject(new ErrorHandler(STATUS.BAD_REQUEST, "Xóa nhật thất bại"));
+    return new Promise((resolve, reject) => {
+      this.connection.query(query, (error, result) => {
+        if (error) {
+          reject(error);
+        } else if (result && result?.affectedRows !== 0) {
+          resolve(result);
+        }
+        reject(new ErrorHandler(STATUS.BAD_REQUEST, "Xóa nhật thất bại"));
+      });
     });
   }
 

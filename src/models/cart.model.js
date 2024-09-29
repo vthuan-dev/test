@@ -4,7 +4,7 @@ class CartModel extends BaseModel {
   constructor() {
     super({
       table: "cart",
-      fillable: ["id", "user_id", "product_id", "quanity"],
+      fillable: ["id", "user_id", "product_id", "quantity"],
     });
   }
 }

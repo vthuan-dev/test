@@ -1,11 +1,15 @@
 import express from "express";
-import * as cartController from "../../controllers/order.controller";
+import * as orderController from "../../controllers/order.controller";
+import * as paymentController from "../../controllers/payment.controller";
 
 const router = express.Router();
-router.post("/add", cartController.create);
-router.put("/update/:id", cartController.update);
-router.delete("/remove/:id", cartController.deleteById);
-router.get("/searchById/:id", cartController.findById);
-router.get("", cartController.getAll);
+router.post("/add", orderController.create);
+router.put("/update/:id", orderController.update);
+router.delete("/remove/:id", orderController.deleteById);
+router.get("/searchById/:id", orderController.findById);
+router.get("", orderController.getAll);
+
+router.post("/add/payment", paymentController.createPayment);
+router.post("/save/payment", paymentController.savePayment);
 
 export default router;

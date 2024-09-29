@@ -3,6 +3,8 @@ import { responseError, responseSuccess } from "../helpers/response";
 import cartModel from "../models/cart.model";
 import orderModel from "../models/order.model";
 import orderDetailModel from "../models/order-detail.model";
+import orderRoomModel from "../models/order-room.model";
+import { ORDER_STATUS, ORDER_TYPE } from "../config/constant";
 
 export const getAll = async (req, res) => {
   try {
@@ -27,24 +29,32 @@ export const getAll = async (req, res) => {
 };
 export const create = async (req, res) => {
   try {
-    const { carts, products, ...remainBody } = req.body;
+    const { carts, products, orderType, orders, ...remainBody } = req.body;
 
-    const result = await orderModel.create(remainBody);
-    const orderId = result?.insertId;
-    const productWithOrderId = products.map((product) => {
-      return {
-        ...product,
-        orderId,
-      };
+    const result = await orderModel.create({
+      ...remainBody,
+      status: ORDER_STATUS.CONFIRMED,
     });
-    const res = await Promise.all([
-      cartModel.deleteMultple("id", carts),
-      orderDetailModel.createMultiple({
-        productWithOrderId,
-      }),
-    ]);
 
-    console.log(res);
+    const isRoomOrder = ORDER_TYPE.ROOM_ORDER === orderType;
+
+    const order_id = result?.insertId;
+
+    if (isRoomOrder) {
+      await orderRoomModel.create(orders);
+    } else {
+      const productWithOrderId = products.map((product) => {
+        return {
+          ...product,
+          order_id,
+        };
+      });
+      await Promise.all([
+        cartModel.deleteMultple("id", carts),
+        orderDetailModel.createMultiple(productWithOrderId),
+      ]);
+    }
+
     const response = {
       data: result,
       message: "Tạo mới hóa đơn thành công",
