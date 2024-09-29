@@ -1,51 +1,91 @@
+import { getPagination } from "../helpers/getPagination";
 import { responseError, responseSuccess } from "../helpers/response";
 import categoryModel from "../models/category.model";
 
-export const create = async (req, res) => {
-  try {
-    const data = req.body;
-
-    return await categoryModel.create(res, data);
-  } catch (error) {
-    return responseError(res, error);
-  }
-};
-
 export const getAll = async (req, res) => {
   try {
-    return await categoryModel.read(res);
+    const { query } = req;
+
+    const { isPagination, ...pagination } = await getPagination(
+      categoryModel,
+      query
+    );
+
+    const product = await categoryModel.read(query, isPagination);
+
+    const data = {
+      message: "Lấy danh sách thành công.",
+      data: product,
+      pagination,
+    };
+    responseSuccess(res, data);
   } catch (error) {
     return responseError(res, error);
   }
 };
-
-export const getById = async (req, res) => {
+export const create = async (req, res) => {
   try {
-    const { id } = req.params;
-    return await categoryModel.find("id", id);
+    const body = req.body;
+    // const { error } = AuthValidator.validatorRegister(req.body);
+    // if (error) {
+    //   return responseError(res, error);
+    // }
+
+    const result = await categoryModel.create(body);
+
+    const response = {
+      data: result,
+      message: "Tạo mới sản phẩm thành công",
+    };
+    responseSuccess(res, response);
   } catch (error) {
     return responseError(res, error);
   }
 };
 
 export const update = async (req, res) => {
-  const { id } = req.params;
-  const data = req.body;
-
   try {
-    const updatedProject = await categoryModel.update("id", id, data);
-    return responseSuccess(res, updatedProject);
+    const { id } = req.params;
+    const body = req.body;
+    const updatedCategory = await categoryModel.update("id", id, body);
+    const response = {
+      message: "Cập nhật dữ liệu thành công",
+      data: updatedCategory,
+    };
+    return responseSuccess(res, response);
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Lỗi trong quá trình cập nhật dữ liệu", error });
+    return responseError(res, error);
   }
 };
 
-export const deleteRecord = async (req, res) => {
+export const findById = async (req, res) => {
   try {
     const { id } = req.params;
-    return await categoryModel.delete(res, id);
+    const category = await categoryModel.findOne({ id });
+
+    if (!category) {
+      return responseNotFound(res);
+    }
+
+    const data = {
+      message: "Lấy dữ liệu thành công",
+      data: category,
+    };
+    return responseSuccess(res, data);
+  } catch (error) {
+    return responseError(res, error);
+  }
+};
+
+export const deleteById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const category = await categoryModel.delete(id);
+    const data = {
+      message: "Xóa dữ liệu thành công",
+      data: category,
+    };
+    return responseSuccess(res, data);
   } catch (error) {
     return responseError(res, error);
   }
