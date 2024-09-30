@@ -32,8 +32,8 @@ export const create = async (req, res) => {
       user_type: roles.USER,
     };
 
-    await usersModel.create(res, data);
-    return responseSuccess(res, data);
+    const user = await usersModel.create(data);
+    return responseSuccess(res, user);
   } catch (error) {
     return responseError(res, error);
   }

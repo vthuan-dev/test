@@ -5,7 +5,9 @@ import { responseSuccess } from "../helpers/response";
 const checkAuth = async (req, res, next) => {
   try {
     const { username, password } = req.body;
-    const existUser = await usersModel.findOne(res, "username", username);
+    const existUser = await usersModel.findOne({
+      username,
+    });
 
     if (!existUser) {
       return res.status(400).json({ message: "Tài khoản không tồn tại" });
@@ -26,7 +28,7 @@ const checkAuth = async (req, res, next) => {
       },
     };
 
-    responseSuccess(res, data);
+    return responseSuccess(res, data);
   } catch (error) {
     res.status(400).json({ message: "Login faileds", error });
   }
