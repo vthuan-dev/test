@@ -28,11 +28,12 @@ export const create = async (req, res) => {
     const data = {
       ...remainBody,
       password: hashPassword,
-      is_vip: false,
+      is_vip: 1,
       user_type: roles.USER,
     };
 
-    return await usersModel.create(res, data);
+    await usersModel.create(res, data);
+    return responseSuccess(res, data);
   } catch (error) {
     return responseError(res, error);
   }
