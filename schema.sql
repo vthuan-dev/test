@@ -32,17 +32,17 @@ CREATE TABLE `desktop` (
 CREATE TABLE `category` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
   `category_name` VARCHAR(100),
-  `description` VARCHAR(255),
+  `description` TEXT,
   `created_at` DATETIME DEFAULT NOW()
 );
 
 CREATE TABLE `product` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
-  `image_url` VARCHAR(100),
+  `image_url` TEXT,
   `product_name` VARCHAR(100),
   `price` DECIMAL(10,2),
   `category_id` VARCHAR(50),
-  `description` VARCHAR(255),
+  `description` TEXT,
   `created_at` DATETIME DEFAULT NOW()
 );
 

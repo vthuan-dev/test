@@ -31,6 +31,16 @@ export const create = async (req, res) => {
     //   return responseError(res, error);
     // }
 
+    const category = await categoryModel.findOne({
+      category_name: body.category_name,
+    });
+
+    if (category) {
+      return responseError(res, {
+        message: "Danh mục đã tồn tại",
+      });
+    }
+
     const result = await categoryModel.create(body);
 
     const response = {
