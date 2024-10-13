@@ -10,11 +10,11 @@ const orderRoutes = {
       route: orderRoute,
     },
     {
-      path: "room",
+      path: "order/room",
       route: orderRoomRoute,
     },
     {
-      path: "product",
+      path: "order/product",
       route: orderProductRoute,
     },
   ],

@@ -27,6 +27,10 @@ export const getAll = async (req, res) => {
     return responseError(res, error);
   }
 };
+
+/produc
+
+
 export const create = async (req, res) => {
   try {
     const { carts, products, orderType, rooms, orders, ...remainBody } =

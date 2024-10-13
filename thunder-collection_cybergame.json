@@ -1,0 +1,176 @@
+{
+    "clientName": "Thunder Client",
+    "collectionName": "cybergame",
+    "collectionId": "afd6f7d6-dc12-4c2c-a141-d6409d9ed6e6",
+    "dateExported": "2024-10-13T04:45:14.256Z",
+    "version": "1.2",
+    "folders": [
+        {
+            "_id": "b6527d81-bb8b-4d9a-b6eb-67f367a7de90",
+            "name": "cart",
+            "containerId": "",
+            "created": "2024-10-09T14:49:22.222Z",
+            "sortNum": 10000
+        },
+        {
+            "_id": "0bb5d72a-dc15-4b03-81e3-9b38157c5ba0",
+            "name": "order",
+            "containerId": "",
+            "created": "2024-10-13T02:41:49.301Z",
+            "sortNum": 20000
+        }
+    ],
+    "requests": [
+        {
+            "_id": "0b0b0cbf-baad-4a16-b759-f452b04c30b5",
+            "colId": "afd6f7d6-dc12-4c2c-a141-d6409d9ed6e6",
+            "containerId": "",
+            "name": "create",
+            "url": "http://localhost:5001/api/auth/register",
+            "method": "POST",
+            "sortNum": 10000,
+            "created": "2024-09-24T13:22:47.219Z",
+            "modified": "2024-09-24T13:30:03.250Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"username\":\"duongcoi2\",\n  \"password\":\"duongcoi\",\n  \"email\":\"duongcoi\",\n  \"is_vip\": false\n}",
+                "form": []
+            }
+        },
+        {
+            "_id": "5093c8a1-3d92-45e6-9fb8-5987e398864a",
+            "colId": "afd6f7d6-dc12-4c2c-a141-d6409d9ed6e6",
+            "containerId": "0bb5d72a-dc15-4b03-81e3-9b38157c5ba0",
+            "name": "create",
+            "url": "http://localhost:5001/api/order/add",
+            "method": "POST",
+            "sortNum": 10000,
+            "created": "2024-09-24T13:40:51.013Z",
+            "modified": "2024-10-13T04:04:26.825Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"user_id\": 1,\n  \"total_money\": 4000,\n  \"description\": \"text\",\n  \"rooms\": [\n    {\n      \"room_id\": 1,\n      \"start_time\": \"2024-09-29 12:50:34\",\n      \"end_time\": \"2024-09-29 18:50:34\",\n      \"total_time\": 10,\n      \"total_price\": 2000000\n    }\n  ],\n  \"products\": [\n    {\n      \"quantity\": 1,\n      \"product_id\": 1\n    }\n  ],\n  \"carts\": [\n    1\n  ]\n}",
+                "form": []
+            }
+        },
+        {
+            "_id": "0198e4e9-ba2e-475d-b460-2e0ef0027115",
+            "colId": "afd6f7d6-dc12-4c2c-a141-d6409d9ed6e6",
+            "containerId": "",
+            "name": "login",
+            "url": "http://localhost:5001/api/auth/login",
+            "method": "POST",
+            "sortNum": 20000,
+            "created": "2024-09-24T13:27:37.839Z",
+            "modified": "2024-09-24T13:28:06.704Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"username\":\"duongcoi\",\n  \"password\":\"duongcoi\"\n}",
+                "form": []
+            }
+        },
+        {
+            "_id": "ac30ec36-b775-476e-9a0c-26e58ac02933",
+            "colId": "afd6f7d6-dc12-4c2c-a141-d6409d9ed6e6",
+            "containerId": "",
+            "name": "room",
+            "url": "http://localhost:5001/api/room",
+            "method": "GET",
+            "sortNum": 30000,
+            "created": "2024-09-24T13:35:58.578Z",
+            "modified": "2024-10-13T04:44:13.395Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"room_name\": \"Phòng vip 1\",\n  \"status\": \"PENDING\",\n  \"position\": \"Tầng 1\",\n  \"image_url\": \"image\",\n  \"capacity\": 10,\n  \"description\": \"description\"\n}",
+                "form": []
+            }
+        },
+        {
+            "_id": "6dc940b4-df06-4c10-8bc2-d3775473ce83",
+            "colId": "afd6f7d6-dc12-4c2c-a141-d6409d9ed6e6",
+            "containerId": "",
+            "name": "product",
+            "url": "http://localhost:5001/api/product/add",
+            "method": "POST",
+            "sortNum": 40000,
+            "created": "2024-10-13T04:00:52.865Z",
+            "modified": "2024-10-13T04:03:23.179Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"product_name\": \"Phòng vip 1\",\n  \"image_url\": \"ulr\",\n  \"price\": 1000010,\n  \"category_id\": 1,\n  \"description\": \"description\"\n}",
+                "form": []
+            }
+        },
+        {
+            "_id": "762f5299-484d-4da4-817c-f2422279fcf6",
+            "colId": "afd6f7d6-dc12-4c2c-a141-d6409d9ed6e6",
+            "containerId": "b6527d81-bb8b-4d9a-b6eb-67f367a7de90",
+            "name": "create",
+            "url": "http://localhost:5001/api/cart/add",
+            "method": "POST",
+            "sortNum": 50000,
+            "created": "2024-10-09T14:49:30.601Z",
+            "modified": "2024-10-13T02:25:22.146Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"user_id\": 1,\n  \"room_id\":2,\n  \"quantity\": 1,\n  \"type\": 0\n}",
+                "form": []
+            }
+        },
+        {
+            "_id": "cd598a91-0865-47a2-9efe-100673cd8065",
+            "colId": "afd6f7d6-dc12-4c2c-a141-d6409d9ed6e6",
+            "containerId": "",
+            "name": "category",
+            "url": "http://localhost:5001/api/category/add",
+            "method": "POST",
+            "sortNum": 50000,
+            "created": "2024-10-13T04:02:20.990Z",
+            "modified": "2024-10-13T04:03:52.290Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\n  \"category_name\": \"danh mục 11\",\n  \"description\": \"description\"\n}",
+                "form": []
+            }
+        },
+        {
+            "_id": "6579f52d-075c-4d6f-9192-43b8738643d3",
+            "colId": "afd6f7d6-dc12-4c2c-a141-d6409d9ed6e6",
+            "containerId": "b6527d81-bb8b-4d9a-b6eb-67f367a7de90",
+            "name": "getAll",
+            "url": "http://localhost:5001/api/cart?user_id=1",
+            "method": "GET",
+            "sortNum": 60000,
+            "created": "2024-10-13T02:20:09.280Z",
+            "modified": "2024-10-13T02:20:30.284Z",
+            "headers": [],
+            "params": [
+                {
+                    "name": "user_id",
+                    "value": "1",
+                    "isPath": false
+                }
+            ]
+        },
+        {
+            "_id": "550e56d6-f13b-43d4-9e5d-ef4a2969cdc7",
+            "colId": "afd6f7d6-dc12-4c2c-a141-d6409d9ed6e6",
+            "containerId": "",
+            "name": "desktop",
+            "url": "http://localhost:5001/api/desktop",
+            "method": "GET",
+            "sortNum": 60000,
+            "created": "2024-10-13T04:43:24.514Z",
+            "modified": "2024-10-13T04:43:44.434Z",
+            "headers": []
+        }
+    ],
+    "ref": "nX2CmIsoiCYz__tfhQaLsldmmXAptCvH5xeb5-Q1FOK_ALFQCN2TeP2Nsf0Rx6uGsvDhWWm08qFZ313-oMfSJQ"
+}
