@@ -5,18 +5,29 @@ import cartModel from "../models/cart.model";
 export const getAll = async (req, res) => {
   try {
     const { query } = req;
+    console.log("🚀 ~ query:", query);
 
-    const { isPagination, ...pagination } = await getPagination(
-      cartModel,
-      query
-    );
+    // const { isPagination, ...pagination } = await getPagination(
+    //   cartModel,
+    //   query
+    // );
 
-    const product = await cartModel.read(query, isPagination);
+    // const product = await cartModel.read(query, false);
+
+    const [cartRoom, cartProduct] = await Promise.all([
+      cartModel.getCartRoomByUserId(query.user_id),
+      cartModel.getCartProductByUserId(query.user_id),
+    ]);
+
+    console.log("🚀 ~ cartProduct:", cartProduct);
+    console.log("🚀 ~ cartRoom:", cartRoom);
 
     const data = {
       message: "Lấy danh sách thành công.",
-      data: product,
-      pagination,
+      data: {
+        cartRoom,
+        cartProduct,
+      },
     };
     responseSuccess(res, data);
   } catch (error) {

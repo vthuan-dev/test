@@ -51,6 +51,8 @@ CREATE TABLE `cart` (
   `user_id` INT,
   `product_id` INT,
   `quantity` INT,
+  `type` TinyINT DEFAULT 0,
+  `room_id` INT,
   `created_at` DATETIME DEFAULT NOW()
 );
 
@@ -87,6 +89,8 @@ CREATE TABLE `room_order_detail` (
 ALTER TABLE `cart` ADD FOREIGN KEY (`user_id`) REFERENCES `user` (`id`);
 
 ALTER TABLE `cart` ADD FOREIGN KEY (`product_id`) REFERENCES `product` (`id`);
+
+ALTER TABLE `cart` ADD FOREIGN KEY (`room_id`) REFERENCES `room` (`id`);
 
 ALTER TABLE `orders` ADD FOREIGN KEY (`user_id`) REFERENCES `user` (`id`);
 
