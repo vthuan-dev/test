@@ -1,21 +1,17 @@
 import { getPagination } from "../helpers/getPagination";
 import { responseError, responseSuccess } from "../helpers/response";
-import cartModel from "../models/cart.model";
-import orderModel from "../models/order.model";
-import orderDetailModel from "../models/order-detail.model";
-import orderRoomModel from "../models/order-room.model";
-import { ORDER_STATUS, ORDER_TYPE } from "../config/constant";
+import desktopModel from "../models/desktop.model";
 
 export const getAll = async (req, res) => {
   try {
     const { query } = req;
 
     const { isPagination, ...pagination } = await getPagination(
-      orderModel,
+      desktopModel,
       query
     );
 
-    const product = await orderModel.read(query, isPagination);
+    const product = await desktopModel.read(query, isPagination);
 
     const data = {
       message: "Lấy danh sách thành công.",
@@ -29,48 +25,27 @@ export const getAll = async (req, res) => {
 };
 export const create = async (req, res) => {
   try {
-    const { carts, products, orderType, rooms, orders, ...remainBody } =
-      req.body;
+    const body = req.body;
+    // const { error } = AuthValidator.validatorRegister(req.body);
+    // if (error) {
+    //   return responseError(res, error);
+    // }
 
-    const result = await orderModel.create({
-      ...remainBody,
-      status: ORDER_STATUS.CONFIRMED,
+    const category = await desktopModel.findOne({
+      category_name: body.category_name,
     });
 
-    const order_id = result?.insertId;
-
-    const productWithOrderId = [];
-    const roomWithOrderId = [];
-
-    if (products && products.length > 0) {
-      products.forEach((product) => {
-        productWithOrderId.push({
-          ...product,
-          order_id,
-        });
+    if (category) {
+      return responseError(res, {
+        message: "Danh mục đã tồn tại",
       });
     }
-    console.log("errr");
 
-    if (rooms && rooms.length > 0) {
-      rooms.map((room) => {
-        roomWithOrderId.push({
-          ...room,
-          order_id,
-        });
-      });
-    }
-    console.log("🚀 ~ roomWithOrderId:", roomWithOrderId);
-    await cartModel.deleteMultple("id", carts);
-
-    await Promise.all([
-      orderDetailModel.createMultiple(productWithOrderId),
-      orderRoomModel.createMultiple(roomWithOrderId),
-    ]);
+    const result = await desktopModel.create(body);
 
     const response = {
       data: result,
-      message: "Tạo mới hóa đơn thành công",
+      message: "Tạo mới thành công",
     };
     responseSuccess(res, response);
   } catch (error) {
@@ -82,7 +57,7 @@ export const update = async (req, res) => {
   try {
     const { id } = req.params;
     const body = req.body;
-    const updatedCategory = await orderModel.update("id", id, body);
+    const updatedCategory = await desktopModel.update("id", id, body);
     const response = {
       message: "Cập nhật dữ liệu thành công",
       data: updatedCategory,
@@ -96,7 +71,7 @@ export const update = async (req, res) => {
 export const findById = async (req, res) => {
   try {
     const { id } = req.params;
-    const category = await orderModel.findOne({ id });
+    const category = await desktopModel.findOne({ id });
 
     if (!category) {
       return responseNotFound(res);
@@ -115,7 +90,7 @@ export const findById = async (req, res) => {
 export const deleteById = async (req, res) => {
   try {
     const { id } = req.params;
-    const category = await orderModel.delete(id);
+    const category = await desktopModel.delete(id);
     const data = {
       message: "Xóa dữ liệu thành công",
       data: category,

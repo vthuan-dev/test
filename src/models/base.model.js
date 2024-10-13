@@ -196,11 +196,11 @@ class BaseModel {
     return new Promise((resolve, reject) => {
       this.connection.query(query, (error, result) => {
         if (error) {
-          reject(error);
+          resolve(error);
         } else if (result && result?.affectedRows !== 0) {
           resolve(result);
         }
-        reject(new ErrorHandler(STATUS.BAD_REQUEST, "Xóa nhật thất bại"));
+        resolve({ empty: true });
       });
     });
   }

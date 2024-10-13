@@ -19,14 +19,14 @@ CREATE TABLE `room` (
   `position` VARCHAR(100),
   `image_url` TEXT,
   `capacity` INT,
-  `description`VARCHAR(255),
+  `description` VARCHAR(255)
 );
 
 CREATE TABLE `desktop` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
   `room_id` INT,
   `status` VARCHAR(50),
-  `description`VARCHAR(255),
+  `description` VARCHAR(255)
 );
 
 CREATE TABLE `category` (
@@ -41,7 +41,7 @@ CREATE TABLE `product` (
   `image_url` TEXT,
   `product_name` VARCHAR(100),
   `price` DECIMAL(10,2),
-  `category_id` VARCHAR(50),
+  `category_id` int,
   `description`VARCHAR(255),
   `created_at` DATETIME DEFAULT NOW()
 );
@@ -78,10 +78,10 @@ CREATE TABLE `order_detail` (
 CREATE TABLE `room_order_detail` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
   `order_id` INT,
-  `room_id` INT NOT NULL,
+  `room_id` INT,
   `start_time` DATETIME NOT NULL,
   `end_time` DATETIME,
-  `total_time` TIME,
+  `total_time` INT,
   `total_price` DECIMAL(10,2) NOT NULL,
   `created_at` DATETIME DEFAULT NOW()
 );
@@ -102,7 +102,7 @@ ALTER TABLE `product` ADD FOREIGN KEY (`category_id`) REFERENCES `category` (`id
 
 ALTER TABLE `room_order_detail` ADD FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`);
 
-ALTER TABLE `room_order_detail` ADD FOREIGN KEY (`order_id`) REFERENCES `room` (`id`);
+ALTER TABLE `room_order_detail` ADD FOREIGN KEY (`room_id`) REFERENCES `room` (`id`);
 
 ALTER TABLE `desktop` ADD FOREIGN KEY (`room_id`) REFERENCES `room` (`id`);
 
