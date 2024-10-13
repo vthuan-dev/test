@@ -17,22 +17,22 @@ CREATE TABLE `room` (
   `room_name` VARCHAR(50),
   `status` VARCHAR(50),
   `position` VARCHAR(100),
-  `image_url` VARCHAR(100),
+  `image_url` TEXT,
   `capacity` INT,
-  `description` VARCHAR(255)
+  `description`VARCHAR(255),
 );
 
 CREATE TABLE `desktop` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
   `room_id` INT,
   `status` VARCHAR(50),
-  `description` VARCHAR(100)
+  `description`VARCHAR(255),
 );
 
 CREATE TABLE `category` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
   `category_name` VARCHAR(100),
-  `description` TEXT,
+  `description`VARCHAR(255),
   `created_at` DATETIME DEFAULT NOW()
 );
 
@@ -42,7 +42,7 @@ CREATE TABLE `product` (
   `product_name` VARCHAR(100),
   `price` DECIMAL(10,2),
   `category_id` VARCHAR(50),
-  `description` TEXT,
+  `description`VARCHAR(255),
   `created_at` DATETIME DEFAULT NOW()
 );
 
@@ -60,7 +60,7 @@ CREATE TABLE `orders` (
   `total_money` DECIMAL(10,2) NOT NULL,
   `order_date` DATETIME,
   `status` VARCHAR(50) NOT NULL,
-  `description` VARCHAR(255),
+  `description`VARCHAR(255),
   `created_at` DATETIME DEFAULT NOW()
 );
 
