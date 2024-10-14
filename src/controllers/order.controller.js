@@ -79,6 +79,24 @@ export const create = async (req, res) => {
   }
 };
 
+export const getDetailById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [room, product, detail] = await Promise.all([
+      orderModel.getRoomOrderDetail(id),
+      orderModel.getProductOrderDetail(id),
+      orderModel.findOne({ id }),
+    ]);
+    const data = {
+      message: "Lấy danh sách thành công.",
+      data: { room, product, detail },
+    };
+    responseSuccess(res, data);
+  } catch (error) {
+    return responseError(res, error);
+  }
+};
+
 export const update = async (req, res) => {
   try {
     const { id } = req.params;
