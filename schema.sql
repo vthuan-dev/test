@@ -19,14 +19,14 @@ CREATE TABLE `room` (
   `position` VARCHAR(100),
   `image_url` TEXT,
   `capacity` INT,
-  `description` VARCHAR(255)
+  `description` TEXT
 );
 
 CREATE TABLE `desktop` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
   `room_id` INT,
   `status` VARCHAR(50),
-  `description` VARCHAR(255)
+  `description` TEXT
 );
 
 CREATE TABLE `category` (
@@ -42,7 +42,7 @@ CREATE TABLE `product` (
   `product_name` VARCHAR(100),
   `price` DECIMAL(10,2),
   `category_id` int,
-  `description`VARCHAR(255),
+  `description` TEXT,
   `created_at` DATETIME DEFAULT NOW()
 );
 

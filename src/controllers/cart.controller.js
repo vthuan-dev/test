@@ -42,6 +42,8 @@ export const create = async (req, res) => {
     //   return responseError(res, error);
     // }
 
+    console.log(body);
+
     const result = await cartModel.create(body);
 
     const response = {
