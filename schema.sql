@@ -19,6 +19,7 @@ CREATE TABLE `room` (
   `position` VARCHAR(100),
   `image_url` TEXT,
   `capacity` INT,
+  `price`: INT,
   `description` TEXT
 );
 

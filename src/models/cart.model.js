@@ -10,7 +10,13 @@ class CartModel extends BaseModel {
 
   getCartRoomByUserId(userId) {
     return new Promise((resolve, reject) => {
-      const queryRoom = `select * from cybergame.${this.table}  inner JOIN room ON room.id=${this.table}.room_id WHERE ${this.table}.type = 1 AND ${this.table}.user_id = ${userId}`;
+      const queryRoom = `
+  SELECT  ${this.table}.id as cart_id, ${this.table}.*, room.*
+  FROM cybergame.${this.table}
+  INNER JOIN room ON room.id = ${this.table}.room_id
+  WHERE ${this.table}.type = 1
+    AND ${this.table}.user_id = ${userId}
+`;
       this.connection.query(queryRoom, (error, result) => {
         if (error) {
           reject(error);
@@ -21,9 +27,16 @@ class CartModel extends BaseModel {
       });
     });
   }
+
   getCartProductByUserId(userId) {
     return new Promise((resolve, reject) => {
-      const queryProduct = `select * from cybergame.${this.table} inner JOIN product ON product.id = ${this.table}.product_id WHERE ${this.table}.type = 0 AND ${this.table}.user_id = ${userId}`;
+      const queryProduct = `
+   SELECT ${this.table}.id, ${this.table}.*, product.* 
+   FROM cybergame.${this.table}
+   LEFT JOIN product ON product.id = ${this.table}.product_id
+   WHERE ${this.table}.type = 0 
+   AND ${this.table}.user_id = ${userId}`;
+
       this.connection.query(queryProduct, (error, result) => {
         if (error) {
           reject(error);
