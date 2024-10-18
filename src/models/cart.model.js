@@ -31,7 +31,7 @@ class CartModel extends BaseModel {
   getCartProductByUserId(userId) {
     return new Promise((resolve, reject) => {
       const queryProduct = `
-   SELECT ${this.table}.id, ${this.table}.*, product.* 
+   SELECT ${this.table}.id as cart_id, ${this.table}.*, product.* 
    FROM cybergame.${this.table}
    LEFT JOIN product ON product.id = ${this.table}.product_id
    WHERE ${this.table}.type = 0 

@@ -181,14 +181,69 @@ class BaseModel {
     return new Promise((resolve, reject) => {
       this.connection.query(query, [id], (error, result) => {
         if (error) {
-          reject(error);
-        } else if (result && result?.affectedRows !== 0) {
-          resolve(result);
+          return reject(error); // Reject the promise on error
         }
+
+        if (result && result.affectedRows > 0) {
+          return resolve(result); // Resolve the promise if rows were affected
+        }
+
+        // If no rows were affected, reject with a specific error
         reject(new ErrorHandler(STATUS.BAD_REQUEST, "Xóa thất bại"));
       });
     });
   }
+
+  // async delete(id) {
+  //   // Xác minh ID
+  //   if (!id) {
+  //     throw new ErrorHandler(STATUS.BAD_REQUEST, "ID là bắt buộc.");
+  //   }
+
+  //   // Loại bỏ khoảng trắng và có thể phân tích ID
+  //   const trimmedId = id.trim(); // Loại bỏ bất kỳ khoảng trắng nào
+
+  //   // Kiểm tra xem bản ghi có tồn tại không
+  //   console.log("Đang kiểm tra sự tồn tại cho ID:", trimmedId); // Ghi lại ID đang được kiểm tra
+  //   const exists = await this.checkIfRecordExists(trimmedId);
+  //   if (!exists) {
+  //     throw new ErrorHandler(STATUS.NOT_FOUND, "Không tìm thấy bản ghi."); // Xử lý bản ghi không tồn tại
+  //   }
+
+  //   const query = `DELETE FROM ${this.table} WHERE id = ?`;
+  //   console.log("Thực thi truy vấn:", query, "với id:", trimmedId); // Ghi lại truy vấn xóa
+
+  //   return new Promise((resolve, reject) => {
+  //     this.connection.query(query, [trimmedId], (error, result) => {
+  //       if (error) {
+  //         console.error("Lỗi cơ sở dữ liệu:", error); // Ghi lại lỗi
+  //         return reject(error); // Từ chối lời hứa nếu có lỗi
+  //       }
+
+  //       if (result && result.affectedRows > 0) {
+  //         console.log(`Bản ghi với id ${trimmedId} đã được xóa thành công.`); // Ghi lại thông báo thành công
+  //         return resolve(result); // Giải quyết lời hứa nếu có bản ghi bị ảnh hưởng
+  //       }
+
+  //       // Nếu không có bản ghi nào bị ảnh hưởng, từ chối với lỗi cụ thể
+  //       reject(new ErrorHandler(STATUS.BAD_REQUEST, "Xóa thất bại")); // Không có bản ghi nào bị xóa
+  //     });
+  //   });
+  // }
+
+  // // Phương thức trợ giúp để kiểm tra xem bản ghi có tồn tại không
+  // async checkIfRecordExists(id) {
+  //   const query = `SELECT COUNT(*) AS count FROM ${this.table} WHERE id = ?`;
+  //   return new Promise((resolve, reject) => {
+  //     this.connection.query(query, [id], (error, result) => {
+  //       if (error) {
+  //         console.error("Lỗi kiểm tra sự tồn tại:", error); // Ghi lại lỗi
+  //         return reject(error); // Từ chối nếu có lỗi
+  //       }
+  //       resolve(result[0].count > 0); // Xác nhận với true nếu số lượng lớn hơn 0
+  //     });
+  //   });
+  // }
 
   async deleteMultple(columnValue, listId) {
     const toIdQuery = listId.join(", ");
