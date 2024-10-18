@@ -91,3 +91,25 @@ export const deleteById = async (req, res) => {
     return responseError(res, error);
   }
 };
+
+export const getAllRoomCountDesktop = async (req, res) => {
+  try {
+    console.log(1);
+
+    const query = `SELECT room.id, room.room_name, room.capacity, COUNT(desktop.room_id) AS desktop_count
+    FROM cybergame.room
+    JOIN cybergame.desktop ON room.id = desktop.room_id
+    GROUP BY room.id, room.room_name, room.capacity;`;
+
+    const [result] = await roomModel.connection.promise().query(query);
+
+    const data = {
+      message: "Xóa dữ liệu thành công",
+      data: result,
+    };
+    return responseSuccess(res, data);
+  } catch (error) {
+    console.error("Error:", error);
+    throw error;
+  }
+};

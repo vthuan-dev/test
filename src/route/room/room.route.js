@@ -7,5 +7,6 @@ router.put("/update/:id", roomController.update);
 router.delete("/remove/:id", roomController.deleteById);
 router.get("/searchById/:id", roomController.findById);
 router.get("", roomController.getAll);
+router.get("/get-by-count-desktop", roomController.getAllRoomCountDesktop);
 
 export default router;
