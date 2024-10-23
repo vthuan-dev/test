@@ -4,7 +4,7 @@ class DesktopModel extends BaseModel {
   constructor() {
     super({
       table: "desktop",
-      fillable: ["id", "room_id", "status", "description"],
+      fillable: ["id", "room_id", "status", "description", "price", "desktop_name"],
     });
   }
 }

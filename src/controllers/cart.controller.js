@@ -34,24 +34,78 @@ export const getAll = async (req, res) => {
     return responseError(res, error);
   }
 };
+// export const create = async (req, res) => {
+//   try {
+//     const body = req.body;
+
+//     const result = await cartModel.create(body);
+
+//     const response = {
+//       data: result,
+//       message: "Tạo mới sản phẩm thành công",
+//     };
+//     responseSuccess(res, response);
+//   } catch (error) {
+//     return responseError(res, error);
+//   }
+// };
 export const create = async (req, res) => {
   try {
-    const body = req.body;
-    // const { error } = AuthValidator.validatorRegister(req.body);
-    // if (error) {
-    //   return responseError(res, error);
-    // }
+    const { user_id, product_id, room_id, type, quantity } = req.body;
 
-    console.log(body);
+    // Kiểm tra và cập nhật số lượng nếu tồn tại, nếu không thì chèn mới
+    let updateQuery;
+    const updateParams = [user_id]; // Khởi tạo params với user_id
 
-    const result = await cartModel.create(body);
+    if (type === 0) {
+      // Type 0 cho sản phẩm
+      updateQuery = `
+        UPDATE cart
+        SET quantity = quantity + ?
+        WHERE user_id = ? AND product_id = ? AND type = 0;
+      `;
+      updateParams.push(quantity, product_id); // Thêm quantity và product_id vào params
+    } else if (type === 1) {
+      // Type 1 cho phòng
+      updateQuery = `
+        UPDATE cart
+        SET quantity = quantity + ?
+        WHERE user_id = ? AND room_id = ? AND type = 1;
+      `;
+      updateParams.push(quantity, room_id); // Thêm quantity và room_id vào params
+    }
+
+    // Thực hiện cập nhật
+    const [updateResult] = await cartModel.connection
+      .promise()
+      .query(updateQuery, updateParams);
+
+    // Kiểm tra xem có bản ghi nào được cập nhật không
+    if (updateResult.affectedRows === 0) {
+      // Chèn bản ghi mới nếu không có bản ghi nào được cập nhật
+      let insertQuery = `
+        INSERT INTO cart (user_id, product_id, quantity, type, room_id, created_at)
+        VALUES (?, ?, ?, ?, ?, NOW());
+      `;
+
+      // Chèn nếu cần
+      await cartModel.connection
+        .promise()
+        .query(insertQuery, [
+          user_id,
+          product_id,
+          quantity,
+          type,
+          type === 1 ? room_id : null,
+        ]);
+    }
 
     const response = {
-      data: result,
-      message: "Tạo mới sản phẩm thành công",
+      message: "Thao tác thành công",
     };
-    responseSuccess(res, response);
+    return responseSuccess(res, response);
   } catch (error) {
+    console.error("Error:", error);
     return responseError(res, error);
   }
 };

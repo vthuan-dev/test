@@ -12,6 +12,7 @@ class RoomModel extends BaseModel {
         "image_url",
         "capacity",
         "description",
+        "price",
       ],
     });
   }

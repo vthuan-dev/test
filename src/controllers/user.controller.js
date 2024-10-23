@@ -1,4 +1,5 @@
 import { roles } from "../config/roles";
+import { getPagination } from "../helpers/getPagination";
 import { responseError, responseSuccess } from "../helpers/response";
 
 import usersModel from "../models/users.model";
@@ -13,7 +14,22 @@ export const login = async (req, res) => {
 
 export const getAll = async (req, res) => {
   try {
-    return await usersModel.read(res);
+    const { query } = req;
+
+    const { isPagination, ...pagination } = await getPagination(
+      usersModel,
+      query
+    );
+
+    const users = await usersModel.read(res, isPagination);
+
+    const data = {
+      message: "Lấy danh sách thành công.",
+      data: users,
+      pagination,
+    };
+
+    responseSuccess(res, data);
   } catch (error) {
     return responseError(res, error);
   }

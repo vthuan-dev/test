@@ -26,7 +26,9 @@ CREATE TABLE `room` (
 CREATE TABLE `desktop` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
   `room_id` INT,
-  `status` VARCHAR(50),
+  `desktop_name` VARCHAR(50) NOT NULL,
+  `price` INT,
+  `status` VARCHAR(50) NOT NULL,  -- 0: trống | 1: đang sử dụng
   `description` TEXT
 );
 

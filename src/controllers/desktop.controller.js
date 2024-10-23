@@ -26,22 +26,13 @@ export const getAll = async (req, res) => {
 export const create = async (req, res) => {
   try {
     const body = req.body;
-    // const { error } = AuthValidator.validatorRegister(req.body);
-    // if (error) {
-    //   return responseError(res, error);
-    // }
 
-    const category = await desktopModel.findOne({
-      category_name: body.category_name,
+    const result = await desktopModel.create({
+      ...body,
+      status: "0",
     });
 
-    if (category) {
-      return responseError(res, {
-        message: "Danh mục đã tồn tại",
-      });
-    }
-
-    const result = await desktopModel.create(body);
+    console.log("body create desktop: ", body);
 
     const response = {
       data: result,
@@ -100,5 +91,3 @@ export const deleteById = async (req, res) => {
     return responseError(res, error);
   }
 };
-
-
