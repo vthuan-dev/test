@@ -96,6 +96,23 @@ export const getDetailById = async (req, res) => {
     return responseError(res, error);
   }
 };
+// export const getDetailByUserId = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const [room, product, detail] = await Promise.all([
+//       orderModel.getRoomOrderDetailByUserId(id),
+//       orderModel.getProductOrderDetailByUserId(id),
+//       orderModel.findOne({ id }),
+//     ]);
+//     const data = {
+//       message: "Lấy danh sách thành công.",
+//       data: { room, product, detail },
+//     };
+//     responseSuccess(res, data);
+//   } catch (error) {
+//     return responseError(res, error);
+//   }
+// };
 
 export const update = async (req, res) => {
   try {
@@ -138,6 +155,45 @@ export const deleteById = async (req, res) => {
     const data = {
       message: "Xóa dữ liệu thành công",
       data: category,
+    };
+    return responseSuccess(res, data);
+  } catch (error) {
+    return responseError(res, error);
+  }
+};
+
+export const statisticProductOrder = async (req, res) => {
+  try {
+    const response = await orderModel.statisticProduct();
+    const data = {
+      message: "Lấy dữ liệu thành công",
+      data: response,
+    };
+    return responseSuccess(res, data);
+  } catch (error) {
+    return responseError(res, error);
+  }
+};
+
+export const statisticRoomOrder = async (req, res) => {
+  try {
+    const response = await orderModel.statisticRoom();
+    const data = {
+      message: "Lấy dữ liệu thành công",
+      data: response,
+    };
+    return responseSuccess(res, data);
+  } catch (error) {
+    return responseError(res, error);
+  }
+};
+
+export const statisticTotalPrice = async (req, res) => {
+  try {
+    const response = await orderModel.statisticTotalPrice();
+    const data = {
+      message: "Lấy dữ liệu thành công",
+      data: response,
     };
     return responseSuccess(res, data);
   } catch (error) {

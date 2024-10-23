@@ -63,8 +63,10 @@ CREATE TABLE `orders` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
   `user_id` INT NOT NULL,
   `total_money` DECIMAL(10,2) NOT NULL,
-  `order_date` DATETIME,
+  `order_date` DATETIME DEFAULT NOW(),
   `status` VARCHAR(50) NOT NULL,
+  `payment_method` TinyINT,
+  `payment_status` TinyINT,
   `description`VARCHAR(255),
   `created_at` DATETIME DEFAULT NOW()
 );
