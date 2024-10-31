@@ -16,4 +16,6 @@ router.get("/statistic-total-price", orderController.statisticTotalPrice);
 router.post("/add/payment", paymentController.createPayment);
 router.post("/save/payment", paymentController.savePayment);
 
+router.get("/get-one-order-by-user-id/:id", orderController.getUserOrders);
+
 export default router;
