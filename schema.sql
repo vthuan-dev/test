@@ -58,14 +58,15 @@ CREATE TABLE `cart` (
   `room_id` INT,
   `created_at` DATETIME DEFAULT NOW()
 );
-
+-- payment status 1 unpaid 2 paid
+-- payment method 1 delivery 2 online 
 CREATE TABLE `orders` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
   `user_id` INT NOT NULL,
   `total_money` DECIMAL(10,2) NOT NULL,
   `order_date` DATETIME DEFAULT NOW(),
   `status` VARCHAR(50) NOT NULL,
-  `payment_method` TinyINT,
+  `payment_method` TinyINT, 
   `payment_status` TinyINT,
   `description`VARCHAR(255),
   `created_at` DATETIME DEFAULT NOW()

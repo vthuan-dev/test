@@ -32,7 +32,7 @@ export const create = async (req, res) => {
   try {
     const { carts, products, orderType, rooms, orders, ...remainBody } =
       req.body;
-
+    console.log(req.body)
     const result = await orderModel.create({
       ...remainBody,
       status: ORDER_STATUS.CONFIRMED,
@@ -47,27 +47,29 @@ export const create = async (req, res) => {
       products.forEach((product) => {
         productWithOrderId.push({
           ...product,
+          product_id: parseInt(product.product_id),
           order_id,
         });
       });
+      orderDetailModel.createMultiple(productWithOrderId)
     }
-    console.log("errr");
 
     if (rooms && rooms.length > 0) {
+      const InValueRoom = []
       rooms.map((room) => {
+        InValueRoom.push(table.tableId);
         roomWithOrderId.push({
           ...room,
+          room_id: parseInt(product.room_id),
           order_id,
         });
       });
+      orderRoomModel.createMultiple(roomWithOrderId)
     }
-    console.log("🚀 ~ roomWithOrderId:", roomWithOrderId);
-    await cartModel.deleteMultple("id", carts);
 
-    await Promise.all([
-      orderDetailModel.createMultiple(productWithOrderId),
-      orderRoomModel.createMultiple(roomWithOrderId),
-    ]);
+    if(carts && carts.length > 0) { 
+      await cartModel.deleteMultple("id", carts);
+    }
 
     const response = {
       data: result,
@@ -77,6 +79,7 @@ export const create = async (req, res) => {
   } catch (error) {
     return responseError(res, error);
   }
+      console.log('req.body:', req.body)
 };
 
 export const getDetailById = async (req, res) => {
