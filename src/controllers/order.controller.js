@@ -203,3 +203,230 @@ export const statisticTotalPrice = async (req, res) => {
     return responseError(res, error);
   }
 };
+
+export const detailOrder = async (req, res) => {
+  try {
+    const orderId = req.params.id;
+
+    const query = `
+      SELECT 
+        o.id AS order_id,
+        o.created_at as order_date,
+        o.status AS order_status,
+        o.total_money AS total_amount,  -- total amount of the order
+        o.status,  -- payment status of the order
+        
+        u.username,
+        u.email,
+        u.is_vip,
+        u.vip_end_date,
+        
+        p.product_name,
+        p.price AS unit_price,  -- unit price of the product
+        od.quantity AS product_quantity,
+        (od.quantity * p.price) AS product_total_price,
+        c.category_name AS product_category,
+
+        r.room_name,
+        rod.start_time AS room_start_time,
+        rod.end_time AS room_end_time,
+        rod.total_time AS room_total_time,
+        rod.total_price AS room_total_price  -- total price for the room
+
+      FROM orders o
+      JOIN \`user\` u ON o.user_id = u.id
+      LEFT JOIN order_detail od ON o.id = od.order_id
+      LEFT JOIN product p ON od.product_id = p.id
+      LEFT JOIN category c ON p.category_id = c.id
+      LEFT JOIN room_order_detail rod ON o.id = rod.order_id
+      LEFT JOIN room r ON rod.room_id = r.id
+
+      WHERE o.id = ?;
+    `;
+
+    const [rows] = await orderModel.connection
+      .promise()
+      .query(query, [orderId]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const response = {
+      order_id: rows[0].order_id,
+      order_date: rows[0].order_date,
+      order_status: rows[0].order_status,
+      total_amount: rows[0].total_amount,
+      payment_status: rows[0].payment_status, // Add payment status
+      user: {
+        username: rows[0].username,
+        email: rows[0].email,
+        is_vip: rows[0].is_vip,
+        vip_end_date: rows[0].vip_end_date,
+      },
+      products: rows
+        .filter((row) => row.product_name)
+        .map((row) => ({
+          product_name: row.product_name,
+          unit_price: row.unit_price, // Ensure unit price is included
+          quantity: row.product_quantity,
+          total_price: row.product_total_price,
+          category: row.product_category,
+        })),
+      rooms: rows
+        .filter((row) => row.room_name)
+        .map((row) => ({
+          room_name: row.room_name,
+          start_time: row.room_start_time,
+          end_time: row.room_end_time,
+          total_time: row.room_total_time,
+          total_price: row.room_total_price, // Ensure room total price is included
+        })),
+    };
+
+    const data = {
+      message: "Lấy dữ liệu thành công",
+      data: response,
+    };
+    return responseSuccess(res, data);
+  } catch (error) {
+    console.error("Error:", error);
+    return res.status(500).json({ message: "An error occurred", error });
+  }
+};
+
+// Hàm lấy hóa đơn của người dùng
+export const getUserOrders = async (req, res) => {
+  const userId = parseInt(req.params.id, 10); // Chuyển đổi sang số nguyên
+
+  // Kiểm tra ID người dùng hợp lệ
+  if (isNaN(userId)) {
+    return res.status(400).json({ message: "ID người dùng không hợp lệ." });
+  }
+
+  // Truy vấn SQL để lấy thông tin đơn hàng và chi tiết phòng
+  const query = `
+    SELECT 
+        o.id AS order_id,
+        o.total_money,
+        o.order_date,
+        o.status AS order_status,
+        od.id AS order_detail_id,
+        od.product_id,
+        od.quantity AS order_quantity,
+        od.price AS order_detail_price,
+        p.product_name AS product_name,
+        p.image_url AS product_image,
+        rod.id AS room_order_detail_id,
+        rod.room_id,
+        rod.start_time,
+        rod.end_time,
+        rod.total_time,
+        rod.total_price AS room_order_total_price,
+        r.id AS room_id,          -- Thêm ID phòng
+        r.room_name,
+        r.image_url AS room_image
+    FROM 
+        orders o
+    LEFT JOIN 
+        order_detail od ON o.id = od.order_id
+    LEFT JOIN 
+        product p ON od.product_id = p.id
+    LEFT JOIN 
+        room_order_detail rod ON o.id = rod.order_id
+    LEFT JOIN 
+        room r ON rod.room_id = r.id
+    WHERE 
+        o.user_id = ?; 
+  `;
+
+  try {
+    const [results] = await orderModel.connection
+      .promise()
+      .execute(query, [userId]);
+
+    // Kiểm tra xem có kết quả hay không
+    if (results.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy hóa đơn nào cho người dùng này." });
+    }
+
+    // Xử lý kết quả trả về
+    const orders = results.reduce((acc, row) => {
+      const {
+        order_id,
+        total_money,
+        order_date,
+        order_status,
+        order_detail_id,
+        product_id,
+        order_quantity,
+        order_detail_price,
+        product_name,
+        product_image,
+        room_order_detail_id,
+        room_id,
+        start_time,
+        end_time,
+        total_time,
+        room_order_total_price,
+        room_name,
+        room_image,
+      } = row;
+
+      let order = acc.find((o) => o.id === order_id);
+
+      // Nếu chưa có đơn hàng trong mảng accumulator, tạo mới
+      if (!order) {
+        order = {
+          id: order_id,
+          total_money,
+          order_date,
+          order_status,
+          order_details: [],
+          room_order_details: [],
+        };
+        acc.push(order);
+      }
+
+      // Thêm chi tiết đơn hàng nếu có
+      if (order_detail_id) {
+        order.order_details.push({
+          id: order_detail_id,
+          product_id,
+          product_name,
+          product_image,
+          quantity: order_quantity,
+          price: order_detail_price,
+        });
+      }
+
+      // Thêm chi tiết phòng nếu có
+      if (room_order_detail_id) {
+        order.room_order_details.push({
+          id: room_order_detail_id,
+          room_id,
+          room_name,
+          room_image,
+          start_time,
+          end_time,
+          total_time,
+          total_price: room_order_total_price,
+        });
+      }
+
+      return acc; // Trả về accumulator
+    }, []);
+
+    // Phản hồi thành công
+    const data = {
+      message: "Lấy dữ liệu thành công",
+      data: orders,
+    };
+    return responseSuccess(res, data);
+  } catch (error) {
+    console.error("Lỗi khi lấy hóa đơn:", error);
+    return res.status(500).json({ message: "Đã xảy ra lỗi khi lấy hóa đơn." });
+  }
+};
