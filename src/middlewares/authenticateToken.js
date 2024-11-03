@@ -1,27 +1,49 @@
 import jwt from "jsonwebtoken";
+import usersModel from "../models/users.model";
 
 const verifyToken = (req, res, next) => {
   try {
     const authHeader = req.headers["authorization"];
-    console.log(authHeader);
-    if (!authHeader) {
-      return res.status(400).json({ message: "Token is required" });
+
+    if (!authHeader || authHeader === "undefined") {
+      return responseError(res, "Token không tồn tại.", 401);
     }
 
     const token = authHeader.split(" ")[1];
-    if (!token) {
-      return res.status(400).json({ message: "Invalid token" });
+
+    if (!token || token === null) {
+      return responseError(res, "Token không tồn tại.", 401);
     }
 
-    jwt.verify(token, process.env.SECRETKEY, (err, user) => {
+    jwt.verify(token, process.env.SECRETKEY, async (err, data) => {
       if (err) {
-        return res.status(400).json({ message: "Invalid token" });
+        return responseError(res, "Xác thực tài khoản thất bại.", 401);
       }
 
-      // Extract user data and remove password
-      const { password, ...data } = user;
-      console.log(data);
-      return res.status(200).json({ data });
+      if (!data) {
+        return responseError(res, "Xác thực tài khoản thất bại.", 401);
+      }
+
+      const { id } = data;
+
+      const dataGetDB = await usersModel.findOne({
+        id: id,
+      });
+
+      if (!dataGetDB) {
+        return responseError(res, "Xác thực tài khoản thất bại.", 401);
+      }
+
+      if (dataGetDB.is_lock) {
+        return responseError(
+          res,
+          "Tài khoản của bạn đang bị khóa vui lòng liên hệ với quản trị viên.",
+          401
+        );
+      }
+
+      req.auth = dataGetDB;
+      next();
     });
   } catch (error) {
     console.log("Error:", error);

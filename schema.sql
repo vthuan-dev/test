@@ -4,6 +4,7 @@ CREATE TABLE `user` (
   `id` INT PRIMARY KEY AUTO_INCREMENT AUTO_INCREMENT,
   `username` VARCHAR(50),
   `password` VARCHAR(255),
+  `phone` VARCHAR(255),
   `email` VARCHAR(100),
   `user_type` TinyINT,
   `is_vip` TinyINT DEFAULT 0,

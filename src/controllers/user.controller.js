@@ -71,10 +71,21 @@ export const findById = async (req, res) => {
   }
 };
 
-export const authorization = () => {
+export const authorization = async (req, res) => {
   try {
+    const auth = req?.auth;
+
+    const user = await usersModel.findOne({ id: auth?.id });
+
+    const dataResponse = {
+      success: true,
+      message: "Lấy thông tin người dùng thành công.",
+      data: user,
+    };
+
+    return responseSuccess(res, dataResponse);
   } catch (error) {
-    res.status(400).json({ message: "wrong Token", error });
+    return responseError(res, error);
   }
 };
 
@@ -185,5 +196,62 @@ export const getUserDetail = async (req, res) => {
   } catch (error) {
     console.log("error: ", error);
     return res.status(500).json({ message: "Đã có lỗi xảy ra!!!", error });
+  }
+};
+
+export const updateUser = async (req, res) => {
+  const { id } = req.params; // Lấy id từ params
+  const userData = req.body; // Lấy dữ liệu người dùng từ body
+
+  try {
+    // Gọi phương thức update của UserModel
+    const updatedUser = await usersModel.updateById(id, userData);
+
+    // Kiểm tra nếu người dùng đã được cập nhật
+    if (updatedUser) {
+      return res.status(200).json({
+        message: "User updated successfully",
+        data: updatedUser,
+      });
+    } else {
+      return res.status(404).json({ message: "User not found" });
+    }
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ message: "Error updating user", error: error.message });
+  }
+};
+
+export const changePassword = async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+
+    // Lấy thông tin người dùng từ middleware verifyToken
+    const userId = req.user.id;
+
+    // Tìm người dùng trong cơ sở dữ liệu
+    const user = await usersModel.findOne({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Xác minh mật khẩu cũ
+    const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).json({ message: "Old password is incorrect" });
+    }
+
+    // Mã hóa mật khẩu mới
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    // Cập nhật mật khẩu trong cơ sở dữ liệu
+    await user.update({ password: hashedNewPassword });
+
+    return res.status(200).json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Error updating password:", error);
+    return res.status(500).json({ message: "An error occurred", error });
   }
 };
