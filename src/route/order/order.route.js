@@ -11,10 +11,10 @@ router.get("", orderController.getAll);
 router.get("/detail/:id", orderController.detailOrder);
 router.get("/statistic-product", orderController.statisticProductOrder);
 router.get("/statistic-room", orderController.statisticRoomOrder);
-router.get("/statistic-total-price", orderController.statisticTotalPrice);
+router.get("/statistic-revenue", orderController.statisticTotalPrice);
 
 router.post("/add/payment", paymentController.createPayment);
-router.post("/save/payment", paymentController.savePayment);
+router.get("/save-payment", paymentController.savePayment);
 
 router.get("/get-one-order-by-user-id/:id", orderController.getUserOrders);
 

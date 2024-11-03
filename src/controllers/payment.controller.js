@@ -11,7 +11,7 @@ const config = {
   returnUrl: process.env.VNPAY_RETURN_URL,
 };
 export function createPayment(req, res, next) {
-  const { amount, paymentId } = req.body;
+  const { amount, orderId } = req.body;
   try {
     const ipAddr =
       req.headers["x-forwarded-for"] ||
@@ -41,7 +41,7 @@ export function createPayment(req, res, next) {
     // vnp_Params['vnp_Merchant'] = ''
     vnp_Params["vnp_Locale"] = locale;
     vnp_Params["vnp_CurrCode"] = currCode;
-    vnp_Params["vnp_TxnRef"] = paymentId;
+    vnp_Params["vnp_TxnRef"] = orderId;
     vnp_Params["vnp_OrderInfo"] = orderInfo;
     vnp_Params["vnp_OrderType"] = orderType;
     vnp_Params["vnp_Amount"] = amount * 100;
@@ -90,7 +90,7 @@ export async function savePayment(req, res, next) {
     let vnp_Params = req.query;
     let secureHash = vnp_Params["vnp_SecureHash"];
 
-    let paymentId = vnp_Params["vnp_TxnRef"];
+    let orderId = vnp_Params["vnp_TxnRef"];
     let rspCode = vnp_Params["vnp_ResponseCode"];
 
     delete vnp_Params["vnp_SecureHash"];
@@ -121,8 +121,8 @@ export async function savePayment(req, res, next) {
               //thanh cong
               //paymentStatus = '1'
               // Ở đây cập nhật trạng thái giao dịch thanh toán thành công vào CSDL của bạn
-              // TODO
-              // await orderModel.update(paymentId, { status: "PAID" });
+              // TODO:
+              await orderModel.update("id", orderId, {payment_status: 2 });
               res.status(200).json({
                 RspCode: "00",
                 Message: "Thanh toán thành công",
