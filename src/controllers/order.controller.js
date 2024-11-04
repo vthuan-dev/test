@@ -60,7 +60,7 @@ export const create = async (req, res) => {
         InValueRoom.push(table.tableId);
         roomWithOrderId.push({
           ...room,
-          room_id: parseInt(product.room_id),
+          room_id: parseInt(room.room_id),
           order_id,
         });
       });
