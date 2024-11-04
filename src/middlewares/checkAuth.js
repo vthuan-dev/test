@@ -13,7 +13,13 @@ const checkAuth = async (req, res, next) => {
       return res.status(400).json({ message: "Tài khoản không tồn tại" });
     }
 
-    if (!usersModel.authenticate(password, existUser.password)) {
+    const isAuthen = await usersModel.authenticate(
+      password,
+      existUser.password
+    );
+    console.log("authenticate: ", isAuthen);
+
+    if (!isAuthen) {
       return res.status(400).json({ message: "Mật khẩu không chính xác" });
     }
 

@@ -6,22 +6,26 @@ const verifyToken = (req, res, next) => {
     const authHeader = req.headers["authorization"];
 
     if (!authHeader || authHeader === "undefined") {
-      return responseError(res, "Token không tồn tại.", 401);
+      return res.status(401).json({ message: "Token không tồn tại." });
     }
 
     const token = authHeader.split(" ")[1];
 
     if (!token || token === null) {
-      return responseError(res, "Token không tồn tại.", 401);
+      return res.status(401).json({ message: "Token không tồn tại." });
     }
 
     jwt.verify(token, process.env.SECRETKEY, async (err, data) => {
       if (err) {
-        return responseError(res, "Xác thực tài khoản thất bại.", 401);
+        return res
+          .status(401)
+          .json({ message: "Xác thực tài khoản thất bại." });
       }
 
       if (!data) {
-        return responseError(res, "Xác thực tài khoản thất bại.", 401);
+        return res
+          .status(401)
+          .json({ message: "Xác thực tài khoản thất bại." });
       }
 
       const { id } = data;
@@ -31,15 +35,16 @@ const verifyToken = (req, res, next) => {
       });
 
       if (!dataGetDB) {
-        return responseError(res, "Xác thực tài khoản thất bại.", 401);
+        return res
+          .status(401)
+          .json({ message: "Xác thực tài khoản thất bại." });
       }
 
       if (dataGetDB.is_lock) {
-        return responseError(
-          res,
-          "Tài khoản của bạn đang bị khóa vui lòng liên hệ với quản trị viên.",
-          401
-        );
+        return res.status(401).json({
+          message:
+            "Tài khoản của bạn đang bị khóa vui lòng liên hệ với quản trị viên.",
+        });
       }
 
       req.auth = dataGetDB;
