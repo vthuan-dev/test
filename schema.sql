@@ -1,5 +1,8 @@
 create database cybergame;
 use cybergame;
+
+-- SET SQL_SAFE_UPDATES=0;
+
 CREATE TABLE `user` (
   `id` INT PRIMARY KEY AUTO_INCREMENT AUTO_INCREMENT,
   `username` VARCHAR(50),

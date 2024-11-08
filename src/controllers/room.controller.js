@@ -33,7 +33,7 @@ export const create = async (req, res) => {
     //   return responseError(res, error);
     // }
     // status: 0: trống - 1: đang sử dụng
-    const result = await roomModel.create({ ...body, status: "Trống" });
+    const result = await roomModel.create({ ...body, status: "INACTIVE" });
 
     const response = {
       data: result,
