@@ -93,11 +93,9 @@ class BaseModel {
 
     // Lấy ra một mảng các giá trị từ mảng 2D
     const flatValues = values.reduce((acc, val) => acc.concat(val), []);
-    console.log("🚀 ~ flatValues:", flatValues);
 
     const query = `INSERT INTO ${this.table} (${insertField}) VALUES ${placeholders}`;
 
-    console.log("🚀 ~ query:", query);
     return new Promise((resolve, reject) => {
       this.connection.query(query, flatValues, (error, result) => {
         this.hanldeResult(resolve, reject, error, result);
@@ -116,7 +114,6 @@ class BaseModel {
     return new Promise((resolve, reject) => {
       const query = `SELECT * from ${this.table} ${searchable}`;
       this.connection.query(query, (error, result) => {
-        console.log("🚀 ~ query:", query);
         if (error) {
           reject(error);
         } else if (result && result?.length !== 0) {
@@ -162,7 +159,6 @@ class BaseModel {
       const values = Object.values(data);
       const query = `UPDATE ${this.table} SET ${toStringUpdates} WHERE ${columnValue} IN (${toStringInValue})`;
 
-      console.log("🚀 ~ query:", query);
       this.connection.query(query, [...values], (error, result) => {
         if (error) {
           reject(error);
@@ -269,7 +265,6 @@ class BaseModel {
   }
 
   #getMultipleQuery({ operator = "like", ...query }) {
-    console.log("🚀 ~ query:", query);
     let searchable = "";
     let where = "";
     this.fillable.forEach((item) => {
