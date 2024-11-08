@@ -5,7 +5,6 @@ import cartModel from "../models/cart.model";
 export const getAll = async (req, res) => {
   try {
     const { query } = req;
-    console.log("🚀 ~ query:", query);
 
     // const { isPagination, ...pagination } = await getPagination(
     //   cartModel,
@@ -19,8 +18,8 @@ export const getAll = async (req, res) => {
       cartModel.getCartProductByUserId(query.user_id),
     ]);
 
-    console.log("🚀 ~ cartProduct:", cartProduct);
-    console.log("🚀 ~ cartRoom:", cartRoom);
+    // console.log("🚀 ~ cartProduct:", cartProduct);
+    // console.log("🚀 ~ cartRoom:", cartRoom);
 
     const data = {
       message: "Lấy danh sách thành công.",
@@ -34,70 +33,56 @@ export const getAll = async (req, res) => {
     return responseError(res, error);
   }
 };
-// export const create = async (req, res) => {
-//   try {
-//     const body = req.body;
 
-//     const result = await cartModel.create(body);
-
-//     const response = {
-//       data: result,
-//       message: "Tạo mới sản phẩm thành công",
-//     };
-//     responseSuccess(res, response);
-//   } catch (error) {
-//     return responseError(res, error);
-//   }
-// };
 export const create = async (req, res) => {
   try {
     const { user_id, product_id, room_id, type, quantity } = req.body;
 
-    // Kiểm tra và cập nhật số lượng nếu tồn tại, nếu không thì chèn mới
-    let updateQuery;
-    const updateParams = [user_id]; // Khởi tạo params với user_id
+    // Bước 1: Kiểm tra sự tồn tại của bản ghi
+    let selectQuery;
+    let selectParams = [user_id];
 
     if (type === 0) {
-      // Type 0 cho sản phẩm
-      updateQuery = `
-        UPDATE cart
-        SET quantity = quantity + ?
+      selectQuery = `
+        SELECT * FROM cart
         WHERE user_id = ? AND product_id = ? AND type = 0;
       `;
-      updateParams.push(quantity, product_id); // Thêm quantity và product_id vào params
+      selectParams.push(product_id);
     } else if (type === 1) {
-      // Type 1 cho phòng
-      updateQuery = `
-        UPDATE cart
-        SET quantity = quantity + ?
+      selectQuery = `
+        SELECT * FROM cart
         WHERE user_id = ? AND room_id = ? AND type = 1;
       `;
-      updateParams.push(quantity, room_id); // Thêm quantity và room_id vào params
+      selectParams.push(room_id);
     }
 
-    // Thực hiện cập nhật
-    const [updateResult] = await cartModel.connection
+    const [existingCart] = await cartModel.connection
       .promise()
-      .query(updateQuery, updateParams);
+      .query(selectQuery, selectParams);
 
-    // Kiểm tra xem có bản ghi nào được cập nhật không
-    if (updateResult.affectedRows === 0) {
-      // Chèn bản ghi mới nếu không có bản ghi nào được cập nhật
-      let insertQuery = `
+    if (existingCart.length > 0) {
+      // Bản ghi đã tồn tại, thực hiện cập nhật quantity
+      const updateQuery = `
+        UPDATE cart
+        SET quantity = quantity + ?
+        WHERE id = ?;
+      `;
+      const updateParams = [quantity, existingCart[0].id];
+      await cartModel.connection.promise().query(updateQuery, updateParams);
+
+    } else {
+      // Bản ghi chưa tồn tại, thêm mới
+      const insertQuery = `
         INSERT INTO cart (user_id, product_id, quantity, type, room_id, created_at)
         VALUES (?, ?, ?, ?, ?, NOW());
       `;
-
-      // Chèn nếu cần
-      await cartModel.connection
-        .promise()
-        .query(insertQuery, [
-          user_id,
-          product_id,
-          quantity,
-          type,
-          type === 1 ? room_id : null,
-        ]);
+      await cartModel.connection.promise().query(insertQuery, [
+        user_id,
+        product_id,
+        quantity,
+        type,
+        type === 1 ? room_id : null,
+      ]);
     }
 
     const response = {
@@ -109,6 +94,7 @@ export const create = async (req, res) => {
     return responseError(res, error);
   }
 };
+
 
 export const update = async (req, res) => {
   try {

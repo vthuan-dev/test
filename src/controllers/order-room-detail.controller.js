@@ -100,3 +100,39 @@ export const deleteById = async (req, res) => {
     return responseError(res, error);
   }
 };
+
+export const getTimeLineOrderRoom = async (req, res) => {
+  try {
+    const { roomIds } = req.body;
+
+    // Check if roomIds is an array and not empty
+    if (!Array.isArray(roomIds) || roomIds.length === 0) {
+      return responseError(res, { message: "Room IDs are required." });
+    }
+
+    // Format roomIds as a string for the SQL IN clause
+    const roomIdsString = roomIds.join(",");
+
+    // Prepare the SQL query with parameterized values
+    const query = `
+  SELECT * 
+  FROM cybergame.room_order_detail AS orderRoom
+  JOIN orders ON orders.id = orderRoom.order_id
+  WHERE orderRoom.room_id IN (${roomIdsString})
+    AND orderRoom.start_time >= NOW()
+`;
+
+    // Execute the query
+    const result = await orderRoomModel.connection.promise().query(query);
+    console.log("🚀 ~ getTimeLineOrderRoom ~ result:", result);
+
+    const data = {
+      message: "Data fetched successfully",
+      data: result[0],
+    };
+    return responseSuccess(res, data);
+  } catch (error) {
+    console.error(error);
+    return responseError(res, error);
+  }
+};

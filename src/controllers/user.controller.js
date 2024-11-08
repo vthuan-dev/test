@@ -110,7 +110,6 @@ export const getAllUser = async (req, res) => {
     const offset = (page - 1) * pageSize;
     const limit = `LIMIT ${pageSize} OFFSET ${offset}`;
     const query = `SELECT * FROM user ${searchable} ORDER BY created_at DESC ${limit}`;
-    console.log("🚀 ~ query:", query);
 
     // Thực hiện truy vấn để lấy dữ liệu
     const result = await new Promise((resolve, reject) => {
@@ -168,7 +167,6 @@ export const getUserDetail = async (req, res) => {
 
     // Câu truy vấn SQL để lấy thông tin chi tiết người dùng
     const query = `SELECT * FROM user WHERE id = ?`;
-    console.log("🚀 ~ query:", query);
 
     // Thực hiện truy vấn để lấy thông tin người dùng
     const result = await new Promise((resolve, reject) => {
