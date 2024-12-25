@@ -44,10 +44,10 @@ const ClientChatBox = () => {
       console.log('Joining conversation:', conversation.id);
       socket.emit('join_conversation', conversation.id);
       
-      socket.on('new_message', (data) => {
+      // Lắng nghe tin nhắn mới
+      const handleNewMessage = (data) => {
         console.log('Received new message:', data);
         setMessages(prev => {
-          // Kiểm tra tin nhắn đã tồn tại chưa
           const messageExists = prev.some(msg => msg.id === data.id);
           if (messageExists) return prev;
 
@@ -62,13 +62,15 @@ const ClientChatBox = () => {
           }];
         });
         scrollToBottom();
-      });
+      };
+
+      socket.on('new_message', handleNewMessage);
       
       return () => {
-        socket.off('new_message');
+        socket.off('new_message', handleNewMessage);
       };
     }
-  }, [conversation, user]);
+  }, [conversation?.id]); // Chỉ phụ thuộc vào conversation.id
 
   useEffect(() => {
     if (conversation?.id) {
@@ -139,30 +141,26 @@ const ClientChatBox = () => {
       const messageData = {
         conversation_id: conversation.id,
         sender_id: user.id,
-        message: message.trim()
+        message: message.trim(),
+        username: user.username // Thêm username vào messageData
       };
 
-      // Gửi tin nhắn qua API
       const response = await chatService.sendMessage(messageData);
-      console.log('API response:', response);
 
       if (response.isSuccess) {
-        // Thêm tin nhắn mới vào state
         const newMessage = {
           id: response.data.id,
-          conversation_id: conversation.id,
-          sender_id: user.id,
-          message: message.trim(),
+          ...messageData,
           is_read: false,
           created_at: new Date().toISOString()
         };
 
-        setMessages(prev => [...prev, newMessage]);
-        setMessage(''); // Clear input
-        scrollToBottom(); // Scroll to bottom after new message
-
-        // Emit socket event
+        // Emit socket event trước khi update local state
         socket.emit('send_message', newMessage);
+
+        setMessages(prev => [...prev, newMessage]);
+        setMessage('');
+        scrollToBottom();
       }
     } catch (err) {
       setError('Không thể gửi tin nhắn. Vui lòng thử lại.');

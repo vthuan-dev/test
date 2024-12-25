@@ -49,23 +49,31 @@ export const AdminChatBox = ({
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [localMessages, setLocalMessages] = useState(messages);
 
+  // Sync messages khi props thay đổi
   useEffect(() => {
     setLocalMessages(messages);
   }, [messages]);
 
+  // Scroll to bottom khi có tin nhắn mới
   useEffect(() => {
     scrollToBottom();
   }, [localMessages]);
 
+  // Socket listener
   useEffect(() => {
-    if (conversation?.id) {
-      socket.on('new_message', (newMessage) => {
+    if (socket && conversation?.id) {
+      // Join room
+      socket.emit('join_conversation', conversation.id);
+
+      // Listen for new messages
+      const handleNewMessage = (newMessage) => {
+        console.log('New message received:', newMessage);
         if (newMessage.conversation_id === conversation.id) {
           setLocalMessages(prev => {
             const messageExists = prev.some(msg => msg.id === newMessage.id);
             if (messageExists) return prev;
             
-            return [...prev, {
+            const newMsg = {
               id: newMessage.id,
               conversation_id: newMessage.conversation_id,
               sender_id: newMessage.sender_id,
@@ -73,17 +81,24 @@ export const AdminChatBox = ({
               username: newMessage.username || newMessage.sender_name,
               created_at: newMessage.created_at,
               is_read: false
-            }];
+            };
+            
+            return [...prev, newMsg];
           });
           scrollToBottom();
+          // Notify parent to refresh conversation list
+          onMessageSent();
         }
-      });
+      };
+
+      socket.on('new_message', handleNewMessage);
 
       return () => {
-        socket.off('new_message');
+        socket.off('new_message', handleNewMessage);
+        socket.emit('leave_conversation', conversation.id);
       };
     }
-  }, [conversation?.id, socket]);
+  }, [socket, conversation?.id]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -114,10 +129,13 @@ export const AdminChatBox = ({
           is_read: false
         };
         
-        setLocalMessages(prev => [...prev, newMessage]);
-        
+        // Emit socket event
         socket.emit('send_message', newMessage);
         
+        // Update local state
+        setLocalMessages(prev => [...prev, newMessage]);
+        
+        // Notify parent
         onMessageSent();
         scrollToBottom();
       }

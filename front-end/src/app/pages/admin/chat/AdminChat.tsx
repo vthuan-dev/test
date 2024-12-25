@@ -164,6 +164,18 @@ const AdminChat = () => {
     }
   };
 
+  const handleMessageSent = useCallback(async () => {
+    // Refresh conversations list
+    await fetchConversations();
+    // Refresh messages if needed
+    if (selectedConversation) {
+      const messagesResponse = await chatService.getMessages(selectedConversation.id);
+      if (messagesResponse.isSuccess) {
+        setMessages(messagesResponse.data);
+      }
+    }
+  }, [selectedConversation]);
+
   if (!user) {
     return (
       <Box 
@@ -280,7 +292,7 @@ const AdminChat = () => {
                         messages={messages}
                         currentUser={user}
                         socket={socket}
-                        onMessageSent={fetchConversations}
+                        onMessageSent={handleMessageSent}
                       />
                     </Box>
                   </>
