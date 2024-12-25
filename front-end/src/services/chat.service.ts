@@ -49,11 +49,20 @@ class ChatService {
       const response = await axiosInstance.get('/chat/conversations', { params });
       console.log('Raw API response:', response);
 
-      // Kiểm tra response format mới
+      // Kiểm tra response format mới và trả về data trực tiếp
       if (response.data && response.data.isSuccess && Array.isArray(response.data.data)) {
         return {
-          data: response.data.data,
+          data: response.data.data, // Trả về array conversations trực tiếp
           message: response.data.message,
+          status: 200
+        };
+      }
+      
+      // Nếu response là array trực tiếp
+      if (Array.isArray(response.data)) {
+        return {
+          data: response.data,
+          message: 'Success',
           status: 200
         };
       }
@@ -74,13 +83,22 @@ class ChatService {
   async getMessages(conversation_id: number): Promise<AxiosResponseData<Message[]>> {
     try {
       const response = await axiosInstance.get(`/chat/messages/${conversation_id}`);
-      console.log('Raw messages response:', response); // Debug log
+      console.log('Raw messages response:', response);
 
-      // Kiểm tra và trả về messages array
-      if (response.data && Array.isArray(response.data.data)) {
+      // Kiểm tra response format mới
+      if (response.data && response.data.isSuccess && response.data.data && response.data.data.messages) {
         return {
-          data: response.data.data,
-          message: response.data.message || 'Success',
+          data: response.data.data.messages,
+          message: response.data.message,
+          status: 200
+        };
+      }
+
+      // Kiểm tra nếu messages nằm trực tiếp trong data
+      if (response.data && response.data.messages && Array.isArray(response.data.messages)) {
+        return {
+          data: response.data.messages,
+          message: 'Success',
           status: 200
         };
       }
@@ -114,7 +132,7 @@ class ChatService {
     }
   }
 
-  // Đ��nh dấu tin nhắn đã đọc
+  // Đánh dấu tin nhắn đã đọc
   async markMessagesAsRead(conversation_id: number, user_id: number): Promise<void> {
     try {
       await axiosInstance.put(`/chat/messages/read/${conversation_id}`, {

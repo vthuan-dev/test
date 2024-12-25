@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Grid } from '@mui/material';
+import { 
+  Box, 
+  Grid, 
+  Paper, 
+  Typography,
+  useTheme,
+  Divider,
+  CircularProgress,
+  TextField
+} from '@mui/material';
 import { io } from "socket.io-client";
 import BaseBreadcrumbs from '@components/design-systems/BaseBreadcrumbs/BaseBreadcrumbs';
 import { AdminChatList } from './components/AdminChatList';
@@ -21,6 +30,7 @@ interface Message {
 }
 
 const AdminChat = () => {
+  const theme = useTheme();
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -35,11 +45,17 @@ const AdminChat = () => {
       socket.on('new_message', handleNewMessage);
       socket.on('messages_read', handleMessagesRead);
       socket.on('conversation_closed', handleConversationClosed);
+      
+      // Thêm event listener cho socket error
+      socket.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+      });
 
       return () => {
         socket.off('new_message');
         socket.off('messages_read');
         socket.off('conversation_closed');
+        socket.off('connect_error');
       };
     }
   }, [user]);
@@ -48,11 +64,11 @@ const AdminChat = () => {
     try {
       setLoading(true);
       const response = await chatService.getConversations(user.id, 1);
-      console.log('Raw API response:', response); // Debug log
+      console.log('Raw API response:', response);
       
-      // Kiểm tra response data mới
-      if (response && Array.isArray(response.data)) {
+      if (response && response.data) {
         setConversations(response.data);
+        console.log('Set conversations:', response.data);
       } else {
         console.warn('Invalid response format:', response);
         setConversations([]);
@@ -72,9 +88,9 @@ const AdminChat = () => {
       
       // Lấy tin nhắn
       const response = await chatService.getMessages(conversation.id);
-      console.log('Messages response:', response); // Debug log
+      console.log('Messages response:', response);
       
-      // Kiểm tra response format mới
+      // Kiểm tra và set messages
       if (response && response.data && Array.isArray(response.data)) {
         setMessages(response.data);
         
@@ -97,10 +113,42 @@ const AdminChat = () => {
   };
 
   const handleNewMessage = (message) => {
+    console.log('Received new message:', message); // Debug log
+    
+    // Chỉ cập nhật messages nếu là conversation hiện tại
     if (message.conversation_id === selectedConversation?.id) {
-      setMessages(prev => [...prev, message]);
+      // Kiểm tra xem tin nhắn đã tồn tại chưa
+      setMessages(prev => {
+        // Kiểm tra nếu tin nhắn đã tồn tại (dựa vào id)
+        const messageExists = prev.some(msg => msg.id === message.id);
+        if (messageExists) {
+          return prev; // Không thêm tin nhắn nếu đã tồn tại
+        }
+        
+        // Thêm tin nhắn mới nếu chưa tồn tại
+        return [...prev, {
+          id: message.id || Date.now(),
+          conversation_id: message.conversation_id,
+          sender_id: message.sender_id,
+          message: message.message,
+          username: message.username,
+          created_at: message.created_at,
+          is_read: false
+        }];
+      });
+
+      // Đánh dấu đã đọc nếu người nhận là current user
+      if (message.sender_id !== user.id) {
+        chatService.markMessagesAsRead(message.conversation_id, user.id);
+        socket.emit('messages_read', {
+          conversation_id: message.conversation_id,
+          user_id: user.id
+        });
+      }
     }
-    fetchConversations(); // Update unread counts
+    
+    // Cập nhật danh sách conversation
+    fetchConversations();
   };
 
   const handleMessagesRead = ({ conversation_id }) => {
@@ -118,29 +166,149 @@ const AdminChat = () => {
     }
   };
 
-  if (!user) return <div>Loading...</div>;
+  if (!user) {
+    return (
+      <Box 
+        display="flex" 
+        justifyContent="center" 
+        alignItems="center" 
+        height="100vh"
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <BaseBreadcrumbs arialabel="Chat với khách hàng">
-      <Box sx={{ height: 'calc(100vh - 180px)' }}>
+      <Box 
+        sx={{ 
+          height: 'calc(100vh - 280px)',
+          maxWidth: '1200px',
+          margin: '0 auto',
+          bgcolor: 'background.default',
+          borderRadius: 2,
+          overflow: 'hidden',
+          boxShadow: theme.shadows[3]
+        }}
+      >
         <ErrorBoundary>
-          <Grid container spacing={2} sx={{ height: '100%' }}>
-            <Grid item xs={3}>
-              <AdminChatList 
-                conversations={conversations}
-                selectedConversation={selectedConversation}
-                onSelectConversation={handleSelectConversation}
-                loading={loading}
-              />
+          <Grid container sx={{ height: '100%' }}>
+            {/* Danh sách chat */}
+            <Grid 
+              item 
+              xs={4}
+              sx={{ 
+                borderRight: 1, 
+                borderColor: 'divider',
+                bgcolor: 'background.paper',
+                display: 'flex',
+                flexDirection: 'column',
+                maxWidth: '300px'
+              }}
+            >
+              <Box sx={{ 
+                p: 2, 
+                borderBottom: 1, 
+                borderColor: 'divider',
+                bgcolor: 'background.paper'
+              }}>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Tin nhắn
+                </Typography>
+              </Box>
+              <Box sx={{ 
+                flexGrow: 1,
+                overflow: 'auto',
+                '&::-webkit-scrollbar': {
+                  width: '6px',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  backgroundColor: 'rgba(0,0,0,0.2)',
+                  borderRadius: '3px',
+                }
+              }}>
+                <AdminChatList 
+                  conversations={conversations}
+                  selectedConversation={selectedConversation}
+                  onSelectConversation={handleSelectConversation}
+                  loading={loading}
+                />
+              </Box>
             </Grid>
-            <Grid item xs={9}>
-              <AdminChatBox 
-                conversation={selectedConversation}
-                messages={messages}
-                currentUser={user}
-                socket={socket}
-                onMessageSent={fetchConversations}
-              />
+
+            {/* Khung chat chính */}
+            <Grid item xs={8}>
+              <Paper 
+                elevation={0} 
+                sx={{ 
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  bgcolor: 'background.default',
+                  maxWidth: '900px',
+                  position: 'relative'
+                }}
+              >
+                {selectedConversation ? (
+                  <>
+                    {/* Header chat */}
+                    <Box sx={{ 
+                      p: 1.5,
+                      borderBottom: 1, 
+                      borderColor: 'divider',
+                      bgcolor: 'background.paper'
+                    }}>
+                      <Typography variant="h6" sx={{ fontSize: '1.1rem' }}>
+                        Chat với {selectedConversation.user_name}
+                      </Typography>
+                    </Box>
+
+                    {/* Messages container */}
+                    <Box sx={{ 
+                      position: 'absolute',
+                      top: '50px',
+                      bottom: '0',
+                      left: 0,
+                      right: 0,
+                      overflow: 'hidden',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}>
+                      <AdminChatBox 
+                        conversation={selectedConversation}
+                        messages={messages}
+                        currentUser={user}
+                        socket={socket}
+                        onMessageSent={fetchConversations}
+                      />
+                    </Box>
+                  </>
+                ) : (
+                  <Box 
+                    display="flex" 
+                    alignItems="center" 
+                    justifyContent="center" 
+                    height="100%"
+                    sx={{ 
+                      bgcolor: 'background.paper',
+                      borderRadius: 1,
+                      p: 2
+                    }}
+                  >
+                    <Typography 
+                      color="text.secondary"
+                      sx={{ 
+                        textAlign: 'center',
+                        maxWidth: 250,
+                        fontSize: '0.9rem'
+                      }}
+                    >
+                      Chọn một cuộc hội thoại để bắt đầu chat
+                    </Typography>
+                  </Box>
+                )}
+              </Paper>
             </Grid>
           </Grid>
         </ErrorBoundary>
