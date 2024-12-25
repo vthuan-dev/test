@@ -22,8 +22,8 @@ interface Message {
 
 const AdminChat = () => {
   const { user } = useAuth();
-  const [conversations, setConversations] = useState([]);
-  const [selectedConversation, setSelectedConversation] = useState(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -46,10 +46,7 @@ const AdminChat = () => {
 
   const fetchConversations = async () => {
     try {
-      const response = await chatService.getConversations({
-        user_id: user.id,
-        user_type: 1 // Admin
-      });
+      const response = await chatService.getConversations(user.id, 1);
       setConversations(response.data);
       setLoading(false);
     } catch (error) {

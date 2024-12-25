@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { Box, IconButton, TextField, Paper, Typography, Avatar } from '@mui/material';
+import { Box, IconButton, TextField, Paper, Typography, Avatar, CircularProgress } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import CloseIcon from '@mui/icons-material/Close';
 import ChatIcon from '@mui/icons-material/Chat';
 import useAuth from '~/app/redux/slices/auth.slice';
 import { chatService } from '~/services/chat.service';
 import { io } from 'socket.io-client';
+import { MessageBubble } from './MessageBubble';
 
 const socket = io('http://localhost:5001');
 
@@ -25,6 +26,11 @@ const ClientChatBox = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
+  const [isTyping, setIsTyping] = useState(false);
+  const [typingUser, setTypingUser] = useState('');
+  const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
     if (user?.id && isOpen) {
@@ -51,6 +57,30 @@ const ClientChatBox = () => {
       };
     }
   }, [conversation, user]);
+
+  useEffect(() => {
+    if (conversation?.id) {
+      socket.on('user_typing', (username: string) => {
+        setIsTyping(true);
+        setTypingUser(username);
+        
+        // Clear previous timeout
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+        
+        // Set new timeout
+        typingTimeoutRef.current = setTimeout(() => {
+          setIsTyping(false);
+          setTypingUser('');
+        }, 2000);
+      });
+
+      return () => {
+        socket.off('user_typing');
+      };
+    }
+  }, [conversation]);
 
   const initializeChat = async () => {
     try {
@@ -83,6 +113,9 @@ const ClientChatBox = () => {
 
   const handleSend = async () => {
     if (!message.trim() || !conversation?.id) return;
+    
+    setLoading(true);
+    setError(null);
 
     try {
       const messageData = {
@@ -113,8 +146,11 @@ const ClientChatBox = () => {
         // Emit socket event
         socket.emit('send_message', newMessage);
       }
-    } catch (error) {
-      console.error('Error sending message:', error);
+    } catch (err) {
+      setError('Không thể gửi tin nhắn. Vui lòng thử lại.');
+      console.error('Error:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -132,6 +168,15 @@ const ClientChatBox = () => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  const handleTyping = () => {
+    if (conversation?.id) {
+      socket.emit('typing', {
+        conversation_id: conversation.id,
+        username: user.username
+      });
     }
   };
 
@@ -175,37 +220,28 @@ const ClientChatBox = () => {
             gap: 1
           }}>
             {messages.map((msg) => (
-              <Box
-                key={msg.id}
-                sx={{
-                  display: 'flex',
-                  justifyContent: msg.sender_id === user?.id ? 'flex-end' : 'flex-start',
-                  gap: 1
-                }}
-              >
-                {msg.sender_id !== user?.id && (
-                  <Avatar sx={{ width: 32, height: 32 }}>A</Avatar>
-                )}
-                <Paper
-                  sx={{
-                    p: 1,
-                    maxWidth: '70%',
-                    backgroundColor: msg.sender_id === user?.id ? 'primary.main' : 'grey.100',
-                    color: msg.sender_id === user?.id ? 'white' : 'text.primary'
-                  }}
-                >
-                  <Typography variant="body2">{msg.message}</Typography>
-                  <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                    {new Date(msg.created_at).toLocaleTimeString()}
-                  </Typography>
-                </Paper>
-                {msg.sender_id === user?.id && (
-                  <Avatar sx={{ width: 32, height: 32 }}>
-                    {user?.username?.[0]?.toUpperCase() || 'U'}
-                  </Avatar>
-                )}
-              </Box>
+              <MessageBubble 
+                key={msg.id} 
+                message={msg} 
+                currentUser={user} 
+              />
             ))}
+            
+            {isTyping && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pl: 2 }}>
+                <Typography variant="caption" color="text.secondary">
+                  {typingUser} đang nhập...
+                </Typography>
+                <CircularProgress size={12} />
+              </Box>
+            )}
+            
+            {error && (
+              <Typography color="error" variant="caption" sx={{ pl: 2 }}>
+                {error}
+              </Typography>
+            )}
+            
             <div ref={messagesEndRef} />
           </Box>
 
@@ -213,15 +249,23 @@ const ClientChatBox = () => {
           <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
             <TextField
               fullWidth
-              size="small"
-              placeholder="Type a message..."
+              multiline
+              maxRows={4}
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                handleTyping();
+              }}
               onKeyPress={handleKeyPress}
+              disabled={loading}
+              placeholder="Nhập tin nhắn..."
               InputProps={{
                 endAdornment: (
-                  <IconButton onClick={handleSend} disabled={!message.trim()}>
-                    <SendIcon />
+                  <IconButton 
+                    onClick={handleSend} 
+                    disabled={!message.trim() || loading}
+                  >
+                    {loading ? <CircularProgress size={24} /> : <SendIcon />}
                   </IconButton>
                 )
               }}

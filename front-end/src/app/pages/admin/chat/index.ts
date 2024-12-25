@@ -1,3 +1,1 @@
-import AdminChat from './AdminChat';
-
-export default AdminChat;
+export { default as AdminChat } from './AdminChat';

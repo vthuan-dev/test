@@ -167,42 +167,52 @@ export const getMessages = async (req, res) => {
 
 // 4. Lấy danh sách hội thoại với thông tin mới nhất
 export const getConversations = async (req, res) => {
+  const conn = await connection.promise();
   try {
-    const { user_id, user_type } = req.query;
-    
-    let query = `
-      SELECT c.*, 
-             u.username as user_name,
-             u.user_type,
-             (SELECT COUNT(*) FROM messages m 
-              WHERE m.conversation_id = c.id 
-              AND m.is_read = 0 
-              AND m.sender_id != ?) as unread_count,
-             (SELECT message FROM messages 
-              WHERE conversation_id = c.id 
-              ORDER BY created_at DESC LIMIT 1) as last_message,
-             (SELECT created_at FROM messages 
-              WHERE conversation_id = c.id 
-              ORDER BY created_at DESC LIMIT 1) as last_message_time
-      FROM conversations c
-      JOIN user u ON c.user_id = u.id
-      WHERE 1=1
-    `;
+    // Lấy params từ query string
+    const user_id = Number(req.query.user_id);
+    const user_type = Number(req.query.user_type);
 
-    const queryParams = [user_id];
-
-    // Phân quyền xem hội thoại
-    if (Number(user_type) === 2) { // User thường
-      query += ` AND c.user_id = ?`;
-      queryParams.push(user_id);
-    } else if (Number(user_type) === 1) { // Admin
-      query += ` AND (c.admin_id = ? OR c.admin_id IS NULL)`;
-      queryParams.push(user_id);
+    if (!user_id || !user_type) {
+      return responseError(res, {
+        message: "Thiếu thông tin user_id hoặc user_type"
+      });
     }
 
-    query += ` ORDER BY COALESCE(last_message_time, c.created_at) DESC`;
+    let baseQuery = `
+      SELECT 
+        c.*,
+        u.username as user_name,
+        u.user_type,
+        (SELECT COUNT(*) 
+         FROM messages m 
+         WHERE m.conversation_id = c.id 
+         AND m.is_read = 0 
+         AND m.sender_id != ${conn.escape(user_id)}) as unread_count,
+        (SELECT message 
+         FROM messages m2 
+         WHERE m2.conversation_id = c.id 
+         ORDER BY m2.created_at DESC LIMIT 1) as last_message,
+        (SELECT created_at 
+         FROM messages m3 
+         WHERE m3.conversation_id = c.id 
+         ORDER BY m3.created_at DESC LIMIT 1) as last_message_time
+      FROM conversations c
+      JOIN user u ON c.user_id = u.id
+      WHERE c.status = 'ACTIVE'
+    `;
 
-    const [conversations] = await connection.promise().query(query, queryParams);
+    if (user_type === 2) {
+      baseQuery += ` AND c.user_id = ${conn.escape(user_id)}`;
+    } else if (user_type === 1) {
+      baseQuery += ` AND (c.admin_id = ${conn.escape(user_id)} OR c.admin_id IS NULL)`;
+    }
+
+    baseQuery += ` ORDER BY COALESCE(last_message_time, c.created_at) DESC`;
+
+    console.log('Query:', baseQuery);
+
+    const [conversations] = await conn.query(baseQuery);
 
     return responseSuccess(res, {
       message: "Lấy danh sách hội thoại thành công",

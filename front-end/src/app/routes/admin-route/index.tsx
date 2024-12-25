@@ -4,7 +4,7 @@ import PrivateRouter from '../components/private-router';
 
 import { ROUTE_PATH } from '@constants';
 import LayoutAdmin from '@layout/admin';
-import { AdminProduct, Dashboard, Desktop, Rom } from '@pages/admin';
+import { AdminProduct, Dashboard, Desktop, Rom, AdminChat } from '@pages/admin';
 import RoomDetail from '@pages/admin/rom/RoomDetail';
 import Order from '@pages/admin/order';
 import OrderRoom from '@pages/admin/orderRoom';
@@ -79,6 +79,10 @@ const adminRoutes: RouteObject = {
                element: <RoomDetail />,
             },
          ],
+      },
+      {
+         path: ROUTE_PATH.ADMIN_CHAT,
+         element: <AdminChat />,
       },
    ],
 };

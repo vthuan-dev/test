@@ -32,9 +32,16 @@ class ChatService {
   // Lấy danh sách cuộc hội thoại
   async getConversations(user_id: number, user_type: number): Promise<AxiosResponseData<Conversation[]>> {
     try {
-      return await axiosInstance.get('/chat/conversations', {
-        params: { user_id, user_type }
-      });
+      if (!user_id || !user_type) {
+        throw new Error('Missing required parameters');
+      }
+
+      const params = new URLSearchParams();
+      params.append('user_id', user_id.toString());
+      params.append('user_type', user_type.toString());
+
+      const response = await axiosInstance.get('/chat/conversations', { params });
+      return response.data;
     } catch (error) {
       console.error('Error getting conversations:', error);
       throw error;
@@ -42,11 +49,17 @@ class ChatService {
   }
 
   // Lấy tin nhắn của cuộc hội thoại
-  async getMessages(conversation_id: number): Promise<AxiosResponseData<Message[]>> {
+  async getMessages(conversation_id: number): Promise<AxiosResponseData<{
+    messages: Message[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+    }
+  }>> {
     try {
       const response = await axiosInstance.get(`/chat/messages/${conversation_id}`);
-      console.log('Messages response:', response);
-      return response;
+      return response.data;
     } catch (error) {
       console.error('Error getting messages:', error);
       throw error;

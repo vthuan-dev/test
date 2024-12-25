@@ -5,3 +5,5 @@ export * from './desktop';
 export * from './rom';
 
 export * from './products';
+
+export * from './chat';

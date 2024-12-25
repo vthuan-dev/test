@@ -1,92 +1,92 @@
-import { Box, List, ListItem, ListItemAvatar, ListItemText, Avatar, Paper, Typography, Badge, Skeleton } from '@mui/material';
-import { formatDistanceToNow } from 'date-fns';
-import { vi } from 'date-fns/locale';
+import React from 'react';
+import { Box, List, ListItem, ListItemText, Typography, CircularProgress } from '@mui/material';
+import { Conversation } from '~/services/chat.service';
 
 interface AdminChatListProps {
-  conversations: any[];
-  selectedConversation: any;
-  onSelectConversation: (conversation: any) => void;
+  conversations: Conversation[];
+  selectedConversation: Conversation | null;
+  onSelectConversation: (conversation: Conversation) => void;
   loading: boolean;
 }
 
-export const AdminChatList = ({ 
-  conversations, 
-  selectedConversation, 
+export const AdminChatList: React.FC<AdminChatListProps> = ({
+  conversations = [], // Set default empty array
+  selectedConversation,
   onSelectConversation,
-  loading 
-}: AdminChatListProps) => {
+  loading
+}) => {
   if (loading) {
     return (
-      <Paper sx={{ height: '100%' }}>
-        <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-          <Typography variant="h6">Danh sách chat</Typography>
-        </Box>
-        {[1, 2, 3].map((item) => (
-          <Box key={item} sx={{ p: 2 }}>
-            <Skeleton variant="circular" width={40} height={40} />
-            <Skeleton variant="text" sx={{ mt: 1 }} />
-            <Skeleton variant="text" width="60%" />
-          </Box>
-        ))}
-      </Paper>
+      <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!conversations || conversations.length === 0) {
+    return (
+      <Box p={2}>
+        <Typography variant="body2" color="text.secondary">
+          Không có cuộc hội thoại nào
+        </Typography>
+      </Box>
     );
   }
 
   return (
-    <Paper sx={{ height: '100%', overflow: 'hidden' }}>
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h6">Danh sách chat ({conversations.length})</Typography>
-      </Box>
-      <List sx={{ overflow: 'auto', height: 'calc(100% - 60px)' }}>
+    <Box sx={{ 
+      height: '100%', 
+      bgcolor: 'background.paper',
+      borderRadius: 1,
+      border: '1px solid',
+      borderColor: 'divider'
+    }}>
+      <List sx={{ height: '100%', overflow: 'auto' }}>
         {conversations.map((conversation) => (
-          <ListItem
+          <ListItem 
             key={conversation.id}
             button
             selected={selectedConversation?.id === conversation.id}
             onClick={() => onSelectConversation(conversation)}
             sx={{
-              '&:hover': { bgcolor: 'action.hover' },
-              bgcolor: conversation.unread_count > 0 ? 'action.hover' : 'inherit'
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              '&.Mui-selected': {
+                bgcolor: 'action.selected'
+              }
             }}
           >
-            <ListItemAvatar>
-              <Badge 
-                badgeContent={conversation.unread_count} 
-                color="primary"
-                invisible={conversation.unread_count === 0}
-              >
-                <Avatar>{conversation.user_name[0].toUpperCase()}</Avatar>
-              </Badge>
-            </ListItemAvatar>
             <ListItemText
-              primary={conversation.user_name}
+              primary={
+                <Typography variant="subtitle2">
+                  {conversation.user_name}
+                  {conversation.unread_count > 0 && (
+                    <Box
+                      component="span"
+                      sx={{
+                        ml: 1,
+                        px: 1,
+                        py: 0.5,
+                        borderRadius: 1,
+                        bgcolor: 'error.main',
+                        color: 'white',
+                        fontSize: '0.75rem'
+                      }}
+                    >
+                      {conversation.unread_count}
+                    </Box>
+                  )}
+                </Typography>
+              }
               secondary={
-                <Box component="span" sx={{ display: 'block' }}>
-                  <Typography
-                    component="span"
-                    variant="body2"
-                    color="text.primary"
-                    sx={{
-                      display: 'block',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}
-                  >
-                    {conversation.last_message || 'Chưa có tin nhắn'}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {formatDistanceToNow(new Date(conversation.last_message_time || conversation.created_at), {
-                      addSuffix: true,
-                      locale: vi
-                    })}
-                  </Typography>
-                </Box>
+                <Typography variant="body2" color="text.secondary" noWrap>
+                  {conversation.last_message || 'Chưa có tin nhắn'}
+                </Typography>
               }
             />
           </ListItem>
         ))}
       </List>
-    </Paper>
+    </Box>
   );
 }; 
