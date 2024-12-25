@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Box, IconButton, TextField, Paper, Typography, Avatar, CircularProgress } from '@mui/material';
+import { Box, IconButton, TextField, Paper, Typography, Avatar, CircularProgress, Badge } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import CloseIcon from '@mui/icons-material/Close';
 import ChatIcon from '@mui/icons-material/Chat';
@@ -19,6 +19,22 @@ interface Message {
   created_at: string;
 }
 
+// Thêm hàm thông báo
+const showNotification = (title: string, body: string) => {
+  if (!("Notification" in window)) {
+    return;
+  }
+
+  Notification.requestPermission().then(permission => {
+    if (permission === "granted") {
+      new Notification(title, {
+        body,
+        icon: '/path/to/notification-icon.png' // Thêm icon của bạn
+      });
+    }
+  });
+};
+
 const ClientChatBox = () => {
   const { user, isAuhthentication } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -32,6 +48,7 @@ const ClientChatBox = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
   
   if (!isAuhthentication || !user) {
     return null;
@@ -52,6 +69,20 @@ const ClientChatBox = () => {
       // Lắng nghe tin nhắn mới
       const handleNewMessage = (data) => {
         console.log('Received new message:', data);
+        
+        // Kiểm tra nếu tin nhắn không phải từ user hiện tại
+        if (data.sender_id !== user.id) {
+          // Tăng số tin nhắn chưa đọc nếu chat box đang đóng
+          if (!isOpen) {
+            setUnreadCount(prev => prev + 1);
+            // Hiển thị thông báo
+            showNotification(
+              'Tin nhắn mới',
+              `${data.sender_name || 'Admin'}: ${data.message}`
+            );
+          }
+        }
+
         setMessages(prev => {
           const messageExists = prev.some(msg => msg.id === data.id);
           if (messageExists) return prev;
@@ -75,7 +106,14 @@ const ClientChatBox = () => {
         socket.off('new_message', handleNewMessage);
       };
     }
-  }, [conversation?.id]); // Chỉ phụ thuộc vào conversation.id
+  }, [conversation?.id, isOpen, user.id]);
+
+  // Reset unreadCount khi mở chat box
+  useEffect(() => {
+    if (isOpen) {
+      setUnreadCount(0);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (conversation?.id) {
@@ -214,26 +252,43 @@ const ClientChatBox = () => {
   return (
     <Box sx={{ position: 'fixed', bottom: 20, right: 20, zIndex: 1000 }}>
       {!isOpen ? (
-        <IconButton 
-          onClick={() => setIsOpen(true)}
+        <Badge 
+          badgeContent={unreadCount} 
+          color="error"
           sx={{
-            backgroundColor: '#0f1123',
-            color: '#00ff88',
-            width: 65,
-            height: 65,
-            boxShadow: '0 0 25px rgba(0, 255, 136, 0.4), inset 0 0 20px rgba(0, 255, 136, 0.2)',
-            border: '2px solid rgba(0, 255, 136, 0.3)',
-            '&:hover': { 
-              backgroundColor: '#161832',
-              transform: 'scale(1.1) rotate(5deg)',
-              boxShadow: '0 0 35px rgba(0, 255, 136, 0.6), inset 0 0 25px rgba(0, 255, 136, 0.3)',
-              border: '2px solid rgba(0, 255, 136, 0.5)',
-              transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+            '& .MuiBadge-badge': {
+              backgroundColor: '#ff3d71',
+              color: 'white',
+              animation: unreadCount > 0 ? 'pulse 2s infinite' : 'none',
+              '@keyframes pulse': {
+                '0%': { transform: 'scale(1)' },
+                '50%': { transform: 'scale(1.2)' },
+                '100%': { transform: 'scale(1)' }
+              }
             }
           }}
         >
-          <ChatIcon sx={{ fontSize: 32 }} />
-        </IconButton>
+          <IconButton 
+            onClick={() => setIsOpen(true)}
+            sx={{
+              backgroundColor: '#0f1123',
+              color: '#00ff88',
+              width: 65,
+              height: 65,
+              boxShadow: '0 0 25px rgba(0, 255, 136, 0.4), inset 0 0 20px rgba(0, 255, 136, 0.2)',
+              border: '2px solid rgba(0, 255, 136, 0.3)',
+              '&:hover': { 
+                backgroundColor: '#161832',
+                transform: 'scale(1.1) rotate(5deg)',
+                boxShadow: '0 0 35px rgba(0, 255, 136, 0.6), inset 0 0 25px rgba(0, 255, 136, 0.3)',
+                border: '2px solid rgba(0, 255, 136, 0.5)',
+                transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+              }
+            }}
+          >
+            <ChatIcon sx={{ fontSize: 32 }} />
+          </IconButton>
+        </Badge>
       ) : (
         <Paper 
           elevation={24}
