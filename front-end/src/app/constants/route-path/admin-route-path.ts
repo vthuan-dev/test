@@ -6,6 +6,7 @@ const ADMIN_ROUTE = {
    ADMIN_ORDER: '/admin/order',
    ADMIN_ORDER_ROOM: '/admin/order-room',
    ADMIN_USER: '/admin/user',
+   ADMIN_CHAT: '/admin/chat',
 } as const;
 
 export default ADMIN_ROUTE;

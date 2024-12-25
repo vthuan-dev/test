@@ -8,6 +8,7 @@ import {
    DevicesOutlined as DevicesOutlinedIcon,
    MeetingRoomOutlined as MeetingRoomOutlinedIcon,
    PeopleOutlineOutlined as PeopleOutlineOutlinedIcon,
+   ChatOutlined as ChatOutlinedIcon,
 } from '@mui/icons-material';
 
 import { ROUTE_PATH } from '@constants';
@@ -19,6 +20,7 @@ const sideBars = [
    { title: 'Danh sách thiết bị', to: ROUTE_PATH.ADMIN_DESKTOP, Icon: DevicesOutlinedIcon },
    { title: 'Danh sách phòng', to: ROUTE_PATH.ADMIN_ROM, Icon: MeetingRoomOutlinedIcon },
    { title: 'Danh sách khách hàng', to: ROUTE_PATH.ADMIN_USER, Icon: PeopleOutlineOutlinedIcon },
+   { title: 'Tin nhắn', to: ROUTE_PATH.ADMIN_CHAT, Icon: ChatOutlinedIcon },
 ];
 
 const Sidebar = () => {

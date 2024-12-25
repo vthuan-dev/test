@@ -3,6 +3,7 @@ import { Box, Container } from '@mui/material';
 
 import { Footer } from './footer';
 import { HeaderClient } from './header-client';
+import ClientChatBox from './components/ClientChatBox/ClientChatBox';
 
 export const LayoutClient = ({ children }: { children: React.ReactNode }) => {
    return (
@@ -12,6 +13,7 @@ export const LayoutClient = ({ children }: { children: React.ReactNode }) => {
             {children}
          </Container>
          <Footer />
+         <ClientChatBox />
       </Box>
    );
 };
