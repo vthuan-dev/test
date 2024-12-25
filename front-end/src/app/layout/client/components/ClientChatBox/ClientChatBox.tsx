@@ -4,39 +4,129 @@ import SendIcon from '@mui/icons-material/Send';
 import CloseIcon from '@mui/icons-material/Close';
 import ChatIcon from '@mui/icons-material/Chat';
 import useAuth from '~/app/redux/slices/auth.slice';
+import { chatService } from '~/services/chat.service';
+import { io } from 'socket.io-client';
+
+const socket = io('http://localhost:5001');
+
+interface Message {
+  id: number;
+  conversation_id: number;
+  sender_id: number;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+}
 
 const ClientChatBox = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
+  const [conversation, setConversation] = useState<any>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   
-  const [messages, setMessages] = useState<Array<{
-    id: number;
-    text: string;
-    sender: 'user' | 'admin';
-    timestamp: Date;
-  }>>([]);
+  useEffect(() => {
+    if (user?.id && isOpen) {
+      initializeChat();
+    }
+  }, [user, isOpen]);
+
+  useEffect(() => {
+    if (conversation?.id) {
+      console.log('Joining conversation:', conversation.id);
+      socket.emit('join_conversation', conversation.id);
+      
+      socket.on('new_message', (data) => {
+        console.log('Received new message:', data);
+        // Only add message if it's from another user
+        if (data.sender_id !== user?.id) {
+          setMessages(prev => [...prev, data]);
+          scrollToBottom();
+        }
+      });
+      
+      return () => {
+        socket.off('new_message');
+      };
+    }
+  }, [conversation, user]);
+
+  const initializeChat = async () => {
+    try {
+      // Create or get existing conversation
+      const convResponse = await chatService.createConversation(user.id);
+      setConversation(convResponse.data);
+      
+      // Get messages
+      if (convResponse.data.id) {
+        const msgResponse = await chatService.getMessages(convResponse.data.id);
+        setMessages(msgResponse.data.messages || []);
+      }
+    } catch (error) {
+      console.error('Error initializing chat:', error);
+    }
+  };
+
+  const handleNewMessage = (newMessage: Message) => {
+    if (newMessage.conversation_id === conversation?.id) {
+      setMessages(prev => [...prev, newMessage]);
+      scrollToBottom();
+    }
+  };
+
+  const handleMessagesRead = ({ conversation_id }: { conversation_id: number }) => {
+    if (conversation_id === conversation?.id) {
+      setMessages(prev => prev.map(msg => ({ ...msg, is_read: true })));
+    }
+  };
+
+  const handleSend = async () => {
+    if (!message.trim() || !conversation?.id) return;
+
+    try {
+      const messageData = {
+        conversation_id: conversation.id,
+        sender_id: user.id,
+        message: message.trim()
+      };
+
+      // Gửi tin nhắn qua API
+      const response = await chatService.sendMessage(messageData);
+      console.log('API response:', response);
+
+      if (response.isSuccess) {
+        // Thêm tin nhắn mới vào state
+        const newMessage = {
+          id: response.data.id,
+          conversation_id: conversation.id,
+          sender_id: user.id,
+          message: message.trim(),
+          is_read: false,
+          created_at: new Date().toISOString()
+        };
+
+        setMessages(prev => [...prev, newMessage]);
+        setMessage(''); // Clear input
+        scrollToBottom(); // Scroll to bottom after new message
+
+        // Emit socket event
+        socket.emit('send_message', newMessage);
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  const handleSend = () => {
-    if (message.trim()) {
-      setMessages([...messages, {
-        id: Date.now(),
-        text: message,
-        sender: 'user',
-        timestamp: new Date()
-      }]);
-      setMessage('');
-    }
-  };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -89,27 +179,27 @@ const ClientChatBox = () => {
                 key={msg.id}
                 sx={{
                   display: 'flex',
-                  justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start',
+                  justifyContent: msg.sender_id === user?.id ? 'flex-end' : 'flex-start',
                   gap: 1
                 }}
               >
-                {msg.sender === 'admin' && (
+                {msg.sender_id !== user?.id && (
                   <Avatar sx={{ width: 32, height: 32 }}>A</Avatar>
                 )}
                 <Paper
                   sx={{
                     p: 1,
                     maxWidth: '70%',
-                    backgroundColor: msg.sender === 'user' ? 'primary.main' : 'grey.100',
-                    color: msg.sender === 'user' ? 'white' : 'text.primary'
+                    backgroundColor: msg.sender_id === user?.id ? 'primary.main' : 'grey.100',
+                    color: msg.sender_id === user?.id ? 'white' : 'text.primary'
                   }}
                 >
-                  <Typography variant="body2">{msg.text}</Typography>
+                  <Typography variant="body2">{msg.message}</Typography>
                   <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                    {new Date(msg.timestamp).toLocaleTimeString()}
+                    {new Date(msg.created_at).toLocaleTimeString()}
                   </Typography>
                 </Paper>
-                {msg.sender === 'user' && (
+                {msg.sender_id === user?.id && (
                   <Avatar sx={{ width: 32, height: 32 }}>
                     {user?.username?.[0]?.toUpperCase() || 'U'}
                   </Avatar>

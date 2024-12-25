@@ -28,6 +28,12 @@ app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+// Thêm ngay sau khi khởi tạo io
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 // Routes
 routes.forEach((item) =>
   item.routes.forEach((route) =>
