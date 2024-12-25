@@ -65,6 +65,29 @@ export const AdminChatList: React.FC<AdminChatListProps> = ({
     }
   }, [conversations, selectedConversation, socket]);
 
+  useEffect(() => {
+    if (socket) {
+      socket.on('messages_read', ({ conversation_id }) => {
+        // Cập nhật unread_count của conversation
+        onConversationsUpdate(
+          conversations.map(conv => 
+            conv.id === conversation_id 
+              ? { ...conv, unread_count: 0 }
+              : conv
+          )
+        );
+      });
+
+      return () => {
+        socket.off('messages_read');
+      };
+    }
+  }, [socket, conversations]);
+
+  const handleSelectConversation = (conversation: Conversation) => {
+    onSelectConversation(conversation);
+  };
+
   return (
     <Box sx={{ 
       height: '100%', 
@@ -79,7 +102,7 @@ export const AdminChatList: React.FC<AdminChatListProps> = ({
             key={conversation.id}
             button
             selected={selectedConversation?.id === conversation.id}
-            onClick={() => onSelectConversation(conversation)}
+            onClick={() => handleSelectConversation(conversation)}
             sx={{
               borderBottom: '1px solid',
               borderColor: 'divider',

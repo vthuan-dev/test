@@ -48,6 +48,7 @@ export const AdminChatBox = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [localMessages, setLocalMessages] = useState(messages);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Sync messages khi props thay đổi
   useEffect(() => {
@@ -100,6 +101,59 @@ export const AdminChatBox = ({
     }
   }, [socket, conversation?.id]);
 
+  // Thêm useEffect để mark messages as read khi conversation thay đổi
+  useEffect(() => {
+    if (conversation?.id && currentUser?.id) {
+      const markMessagesAsRead = async () => {
+        try {
+          // Gọi API để đánh dấu tin nhắn đã đọc
+          await chatService.markMessagesAsRead(conversation.id, currentUser.id);
+          
+          // Emit socket event để thông báo tin nhắn đã được đọc
+          socket.emit('messages_read', {
+            conversation_id: conversation.id,
+            user_id: currentUser.id
+          });
+          
+          // Cập nhật local messages
+          setLocalMessages(prev => 
+            prev.map(msg => ({
+              ...msg,
+              is_read: true
+            }))
+          );
+          
+          // Notify parent để cập nhật lại conversation list
+          onMessageSent();
+        } catch (error) {
+          console.error('Error marking messages as read:', error);
+        }
+      };
+
+      markMessagesAsRead();
+    }
+  }, [conversation?.id, currentUser?.id]);
+
+  // Thêm socket listener cho messages_read event
+  useEffect(() => {
+    if (socket && conversation?.id) {
+      socket.on('messages_read', ({ conversation_id }) => {
+        if (conversation_id === conversation.id) {
+          setLocalMessages(prev => 
+            prev.map(msg => ({
+              ...msg,
+              is_read: true
+            }))
+          );
+        }
+      });
+
+      return () => {
+        socket.off('messages_read');
+      };
+    }
+  }, [socket, conversation?.id]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -129,13 +183,8 @@ export const AdminChatBox = ({
           is_read: false
         };
         
-        // Emit socket event
         socket.emit('send_message', newMessage);
-        
-        // Update local state
         setLocalMessages(prev => [...prev, newMessage]);
-        
-        // Notify parent
         onMessageSent();
         scrollToBottom();
       }
@@ -144,6 +193,18 @@ export const AdminChatBox = ({
       setMessage(messageText);
     } finally {
       setLoading(false);
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 0);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
   };
 
@@ -225,20 +286,17 @@ export const AdminChatBox = ({
         }}
       >
         <TextField
+          inputRef={inputRef}
           size="small"
           fullWidth
           multiline
           maxRows={4}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
           disabled={loading}
           placeholder="Nhập tin nhắn..."
-          onKeyPress={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSend();
-            }
-          }}
+          autoFocus
           sx={{
             '& .MuiOutlinedInput-root': {
               borderRadius: 2,
@@ -249,7 +307,7 @@ export const AdminChatBox = ({
           InputProps={{
             endAdornment: (
               <IconButton 
-                onClick={handleSend} 
+                onClick={handleSend}
                 disabled={!message.trim() || loading}
                 color="primary"
               >
