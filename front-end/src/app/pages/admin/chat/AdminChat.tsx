@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { 
   Box, 
   Grid, 
@@ -16,6 +16,7 @@ import { AdminChatBox } from './components/AdminChatBox';
 import { chatService } from '~/services/chat.service';
 import useAuth from '~/app/redux/slices/auth.slice';
 import ErrorBoundary from '~/app/components/ErrorBoundary';
+import debounce from 'lodash/debounce';
 
 const socket = io('http://localhost:5001');
 
@@ -36,6 +37,32 @@ const AdminChat = () => {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const fetchConversations = async () => {
+    try {
+      setLoading(true);
+      const response = await chatService.getConversations(user.id, 1);
+      
+      if (response && response.data) {
+        setConversations(response.data);
+      } else {
+        setConversations([]);
+      }
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+      setConversations([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Tạo debounced version của fetchConversations
+  const debouncedFetchConversations = useCallback(
+    debounce(() => {
+      fetchConversations();
+    }, 1000),
+    []
+  );
 
   useEffect(() => {
     if (user?.id) {
@@ -59,27 +86,6 @@ const AdminChat = () => {
       };
     }
   }, [user]);
-
-  const fetchConversations = async () => {
-    try {
-      setLoading(true);
-      const response = await chatService.getConversations(user.id, 1);
-      console.log('Raw API response:', response);
-      
-      if (response && response.data) {
-        setConversations(response.data);
-        console.log('Set conversations:', response.data);
-      } else {
-        console.warn('Invalid response format:', response);
-        setConversations([]);
-      }
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
-      setConversations([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSelectConversation = async (conversation: Conversation) => {
     try {
@@ -113,31 +119,26 @@ const AdminChat = () => {
   };
 
   const handleNewMessage = (message) => {
-    console.log('Received new message:', message); // Debug log
+    console.log('Received new message:', message);
     
-    // Chỉ cập nhật messages nếu là conversation hiện tại
     if (message.conversation_id === selectedConversation?.id) {
-      // Kiểm tra xem tin nhắn đã tồn tại chưa
       setMessages(prev => {
-        // Kiểm tra nếu tin nhắn đã tồn tại (dựa vào id)
         const messageExists = prev.some(msg => msg.id === message.id);
         if (messageExists) {
-          return prev; // Không thêm tin nhắn nếu đã tồn tại
+          return prev;
         }
-        
-        // Thêm tin nhắn mới nếu chưa tồn tại
+
         return [...prev, {
-          id: message.id || Date.now(),
+          id: message.id,
           conversation_id: message.conversation_id,
           sender_id: message.sender_id,
           message: message.message,
-          username: message.username,
+          username: message.username || message.sender_name,
           created_at: message.created_at,
           is_read: false
         }];
       });
 
-      // Đánh dấu đã đọc nếu người nhận là current user
       if (message.sender_id !== user.id) {
         chatService.markMessagesAsRead(message.conversation_id, user.id);
         socket.emit('messages_read', {
@@ -146,9 +147,6 @@ const AdminChat = () => {
         });
       }
     }
-    
-    // Cập nhật danh sách conversation
-    fetchConversations();
   };
 
   const handleMessagesRead = ({ conversation_id }) => {

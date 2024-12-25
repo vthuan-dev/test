@@ -59,27 +59,32 @@ export const AdminChatBox = ({
   const handleSend = async () => {
     if (!message.trim() || !conversation?.id) return;
 
+    const messageText = message.trim();
+    setMessage('');
     setLoading(true);
+
     try {
       const messageData = {
         conversation_id: conversation.id,
         sender_id: currentUser.id,
-        message: message.trim()
+        message: messageText
       };
 
       const response = await chatService.sendMessage(messageData);
       
       if (response.isSuccess) {
-        setMessage('');
-        
         socket.emit('send_message', {
+          id: response.data.id,
           ...messageData,
-          username: currentUser.username,
+          sender_name: currentUser.username,
           created_at: new Date().toISOString()
         });
+        
+        onMessageSent();
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      setMessage(messageText);
     } finally {
       setLoading(false);
     }

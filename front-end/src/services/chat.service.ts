@@ -47,18 +47,18 @@ class ChatService {
       params.append('user_type', user_type.toString());
 
       const response = await axiosInstance.get('/chat/conversations', { params });
-      console.log('Raw API response:', response);
+      
+      // Chỉ log khi cần debug
+      // console.log('Raw API response:', response);
 
-      // Kiểm tra response format mới và trả về data trực tiếp
       if (response.data && response.data.isSuccess && Array.isArray(response.data.data)) {
         return {
-          data: response.data.data, // Trả về array conversations trực tiếp
+          data: response.data.data,
           message: response.data.message,
           status: 200
         };
       }
       
-      // Nếu response là array trực tiếp
       if (Array.isArray(response.data)) {
         return {
           data: response.data,
@@ -67,7 +67,6 @@ class ChatService {
         };
       }
       
-      console.warn('Invalid response format:', response.data);
       return {
         data: [],
         message: 'No conversations found',
@@ -122,12 +121,11 @@ class ChatService {
     message: string;
   }): Promise<AxiosResponseData<Message>> {
     try {
-      console.log('Sending to API:', data);
+      // Bỏ console.log không cần thiết
       const response = await axiosInstance.post('/chat/messages', data);
-      console.log('API Response:', response);
-      return response;
+      return response.data; // Trả về data trực tiếp
     } catch (error: any) {
-      console.error('Error details:', error.response?.data);
+      console.error('Error sending message:', error.response?.data);
       throw error;
     }
   }
