@@ -26,7 +26,10 @@ class UserModel extends BaseModel {
 
   //   so sánh === password
   async authenticate(inputPassword, hashedPassword) {
+    console.log('Input password:', inputPassword);  // admin123
+    console.log('Hashed password from DB:', hashedPassword); // $2b$10$S53r...
     const isMatch = await bcrypt.compare(inputPassword, hashedPassword);
+    console.log('bcrypt compare result:', isMatch); // true/false
     return isMatch;
   }
 

@@ -1,0 +1,47 @@
+{
+   "compilerOptions": {
+      "target": "ES2020",
+      "useDefineForClassFields": true,
+      "lib": ["ES2020", "DOM", "DOM.Iterable"],
+      "module": "ESNext",
+      "skipLibCheck": true,
+
+      /* Bundler mode */
+      "moduleResolution": "bundler",
+      "allowImportingTsExtensions": true,
+      "resolveJsonModule": true,
+      "isolatedModules": true,
+      "noEmit": true,
+      "jsx": "react-jsx",
+
+      /* Linting */
+      "strict": true,
+      "noUnusedLocals": true,
+      "noUnusedParameters": true,
+      "noFallthroughCasesInSwitch": true,
+
+      "baseUrl": ".",
+      "paths": {
+         "@assets/*": ["src/app/assets/*"],
+         "@components": ["src/app/components"],
+         "@components/*": ["src/app/components/*"],
+         "@constants": ["src/app/constants"],
+         "@constants/*": ["src/app/constants/*"],
+         "@helpers": ["src/app/helpers"],
+         "@helpers/*": ["src/app/helpers/*"],
+         "@hooks": ["src/app/hooks"],
+         "@hooks/*": ["src/app/hooks/*"],
+         "@language": ["src/language"],
+         "@language/*": ["src/language/*"],
+         "@pages": ["src/app/pages"],
+         "@pages/*": ["src/app/pages/*"],
+         "@layout": ["src/app/layout"],
+         "@layout/*": ["src/app/layout/*"],
+         "~/*": ["src/*"]
+      },
+      "types": ["vite/client", "vite-plugin-svgr/client"],
+      "verbatimModuleSyntax": true
+   },
+   "include": ["**/*.ts", "**/*.d.ts", "**/*.tsx"],
+   "references": [{ "path": "./tsconfig.node.json" }]
+}

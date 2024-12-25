@@ -1,0 +1,41 @@
+@font-face {
+   font-family: 'Quicksand';
+   font-weight: 300;
+   font-display: swap;
+   src: url(//bizweb.dktcdn.net/100/514/629/themes/951567/assets/quicksand-light.ttf?1721967463851);
+}
+
+@font-face {
+   font-family: 'Quicksand';
+   font-weight: 400;
+   font-display: swap;
+   src: url(//bizweb.dktcdn.net/100/514/629/themes/951567/assets/quicksand-regular.ttf?1721967463851);
+}
+
+@font-face {
+   font-family: 'Quicksand';
+   font-weight: 500;
+   font-display: swap;
+   src: url(//bizweb.dktcdn.net/100/514/629/themes/951567/assets/quicksand-medium.ttf?1721967463851);
+}
+
+@font-face {
+   font-family: 'Quicksand';
+   font-weight: 600;
+   font-display: swap;
+   src: url(//bizweb.dktcdn.net/100/514/629/themes/951567/assets/quicksand-semibold.ttf?1721967463851);
+}
+
+@font-face {
+   font-family: 'Quicksand';
+   font-weight: 700;
+   font-display: swap;
+   src: url(//bizweb.dktcdn.net/100/514/629/themes/951567/assets/quicksand-bold.ttf?1721967463851);
+}
+
+body {
+   font-size: 14px;
+   font-family: 'Quicksand';
+   background: #fff;
+   font-weight: 400;
+}

@@ -30,7 +30,6 @@ export const create = async (req, res) => {
     // if (error) {
     //   return responseError(res, error);
     // }
-
     const result = await productModel.create(body);
 
     const response = {

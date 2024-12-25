@@ -1,0 +1,138 @@
+.footer {
+   background: #f2f3f4;
+   position: relative;
+   overflow: hidden;
+}
+
+.footer .mid-footer {
+   color: #000;
+   padding: 40px 0 25px;
+   font-weight: 500;
+}
+
+.footer #copyright {
+   padding: 10px 0;
+   font-size: 16px;
+   color: #fff;
+   border-top: 1px solid #fff;
+   text-align: center;
+   background-color: #008b4b;
+}
+
+.container {
+   padding-left: 10px;
+   padding-right: 10px;
+   width: 100%;
+   max-width: 100%;
+   margin-right: auto;
+   margin-left: auto;
+}
+
+.row {
+   display: -ms-flexbox;
+   display: flex;
+   -ms-flex-wrap: wrap;
+   flex-wrap: wrap;
+   margin-right: -15px;
+   margin-left: -15px;
+}
+
+.footer #copyright .copy-right {
+   display: inline-block;
+}
+
+.footer #copyright .copy-right b {
+   color: #f8c144;
+}
+
+.footer #copyright {
+   padding: 10px 0;
+   font-size: 16px;
+   color: #fff;
+   border-top: 1px solid #fff;
+   text-align: center;
+   background-color: #008b4b;
+}
+
+.footer #copyright {
+   padding: 10px 0;
+   font-size: 16px;
+   color: #fff;
+   border-top: 1px solid #fff;
+   text-align: center;
+   background-color: #008b4b;
+}
+
+.footer #copyright a {
+   color: #f8c144;
+}
+
+.footer .mid-footer .logo_foo {
+   display: block;
+   margin-bottom: 15px;
+}
+
+a {
+   transition: all 0.4s ease;
+}
+
+a {
+   color: #231f20;
+   text-decoration: none;
+   background-color: transparent;
+}
+
+.footer .mid-footer .logo_foo img {
+   max-height: 46px;
+   width: auto;
+}
+
+img {
+   vertical-align: middle;
+   border-style: none;
+   max-width: 100%;
+   height: auto;
+}
+
+.footer .mid-footer .des_foo {
+   color: #000;
+   margin-bottom: 10px;
+}
+
+.footer .mid-footer .des_foo span {
+   color: #008b4b;
+   font-weight: 600;
+   font-size: 16px;
+}
+
+.footer .mid-footer .list-menu {
+   list-style: none;
+}
+
+.footer .mid-footer .toggle-mn {
+   padding-left: 0px !important;
+}
+
+.footer .mid-footer .content-contact {
+   line-height: 30px;
+}
+
+.footer .mid-footer .content-contact span.list_footer {
+   float: left;
+   color: #000;
+}
+
+.clearfix::after {
+   display: block;
+   clear: both;
+   content: '';
+}
+
+.footer #copyright {
+   padding: 10px 0;
+   font-size: 16px;
+   color: #fff;
+   border-top: 1px solid #fff;
+   text-align: center;
+   background-color: #008b4b;
+}

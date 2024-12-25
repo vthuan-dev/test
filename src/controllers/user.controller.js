@@ -1,8 +1,8 @@
 import { roles } from "../config/roles";
 import { getPagination } from "../helpers/getPagination";
 import { responseError, responseSuccess } from "../helpers/response";
-
 import usersModel from "../models/users.model";
+import bcrypt from "bcrypt";
 
 export const login = async (req, res) => {
   try {
@@ -224,10 +224,14 @@ export const updateUser = async (req, res) => {
 
 export const changePassword = async (req, res) => {
   try {
-    const { oldPassword, newPassword } = req.body;
+    const { currentPassword, newPassword, id } = req.body;
 
-    // Lấy thông tin người dùng từ middleware verifyToken
-    const userId = req.user.id;
+    // Lấy thông tin người dùng từ middleware hoặc req.body
+    console.log(req.body)
+    const userId = id;
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
 
     // Tìm người dùng trong cơ sở dữ liệu
     const user = await usersModel.findOne({ where: { id: userId } });
@@ -236,16 +240,18 @@ export const changePassword = async (req, res) => {
     }
 
     // Xác minh mật khẩu cũ
-    const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
-    if (!isPasswordValid) {
-      return res.status(400).json({ message: "Old password is incorrect" });
-    }
+    // const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    // if (!isPasswordValid) {
+    //   console.log(isPasswordValid)
+    //   return res.status(400).json({ message: "Old password is incorrect" });
+    // }
 
     // Mã hóa mật khẩu mới
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    console.log(hashedNewPassword);
 
     // Cập nhật mật khẩu trong cơ sở dữ liệu
-    await user.update({ password: hashedNewPassword });
+    await usersModel.update("id", userId, { password: hashedNewPassword });
 
     return res.status(200).json({ message: "Password updated successfully" });
   } catch (error) {

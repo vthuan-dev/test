@@ -5,6 +5,7 @@ import cartRoutes from "./cart";
 import roomRoutes from "./room";
 import orderRoutes from "./order";
 import desktopRoutes from "./desktop";
+import chatRoutes from "./chat/index.js";
 
 export const routes = [
   { ...productRoutes },
@@ -14,4 +15,5 @@ export const routes = [
   { ...roomRoutes },
   { ...orderRoutes },
   { ...desktopRoutes },
+  { ...chatRoutes },
 ];

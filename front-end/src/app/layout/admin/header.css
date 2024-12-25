@@ -1,0 +1,133 @@
+header.header .header-menu-left {
+   display: flex;
+   justify-content: flex-end;
+   align-items: center;
+}
+
+.header-menu .header-menu-des {
+   display: inline-flex;
+   align-items: center;
+   border-radius: 10px;
+   overflow: hidden;
+}
+
+.header-menu .header-menu-des .header-nav {
+   flex: 1;
+   display: block;
+   overflow-x: hidden;
+}
+
+header.header .title_menu {
+   background-color: #f8c144;
+   padding: 2px;
+   margin-top: 0px;
+   border-radius: 5px;
+   cursor: pointer;
+   font-size: 14px;
+   display: flex;
+   align-items: center;
+   font-weight: 600;
+   color: #253d4e;
+   justify-content: center;
+   line-height: 1;
+}
+
+.header-menu .header-menu-des .header-nav .title_menu {
+   display: none;
+}
+
+header.header .header-menu-left .item_big {
+   text-align: left !important;
+}
+
+.header-menu .header-menu-des .header-nav > ul.item_big {
+   text-align: right;
+   margin: 0px;
+   padding: 0px;
+   width: 100%;
+   height: auto;
+   white-space: nowrap;
+}
+
+.header-menu .header-menu-des .header-nav > ul.item_big > li.nav-item {
+   display: inline-block;
+   position: static;
+   border-radius: 10px;
+   padding: 5px 0;
+   transition: all 0s ease;
+}
+
+.header-menu .header-menu-des .header-nav > ul.item_big {
+   text-align: right;
+   margin: 0px;
+   padding: 0px;
+   width: 100%;
+   height: auto;
+   white-space: nowrap;
+}
+
+.header-menu .header-menu-des .header-nav > ul.item_big > li.nav-item > a {
+   display: block;
+   text-align: left;
+   padding: 8px 22px;
+   font-size: 14px;
+   position: relative;
+   color: #253d4e;
+   font-weight: 600;
+   background: #f1faf6;
+   border-radius: 30px;
+   margin-left: 15px;
+}
+
+.header-menu .header-menu-des .header-nav > ul.item_big > li > a.active {
+   background: #008b4b;
+   color: #fff;
+}
+
+.header-menu .header-menu-des .header-nav > ul.item_big > li.nav-item:first-child > a {
+   margin-left: 0px;
+}
+
+a {
+   transition: all 0.4s ease;
+}
+
+a {
+   color: #231f20;
+   text-decoration: none;
+   background-color: transparent;
+}
+
+.header-menu .header-menu-des .header-nav > ul.item_big > li.nav-item:hover > a {
+   background: #008b4b;
+   color: #fff;
+}
+
+.sidebar {
+   width: 250px;
+   min-width: 250px;
+   padding: 20px 20px;
+   margin: 20px auto 0 auto;
+   box-shadow: 0 0 6px hsl(210 14% 90%);
+}
+
+.link {
+   display: flex;
+   align-items: cover;
+   cursor: pointer;
+   border-radius: 30px;
+}
+.link:hover {
+   background-color: #e8f5fe;
+   color: #50b7f5;
+   transition: color 100ms ease-out;
+}
+.link > h2 {
+   font-weight: 700;
+   font-size: 20px;
+   margin-right: 20px;
+}
+
+.link > .MuiSvgIcon-root {
+   padding: 20px;
+}

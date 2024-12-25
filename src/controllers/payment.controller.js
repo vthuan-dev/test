@@ -128,6 +128,7 @@ export async function savePayment(req, res, next) {
                 Message: "Thanh toán thành công",
                 success: true,
               });
+              console.log('Thanh toán thành công!');
             } else {
               //that bai
               //paymentStatus = '2'
