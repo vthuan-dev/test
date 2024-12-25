@@ -47,21 +47,42 @@ export const AdminChatBox = ({
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [localMessages, setLocalMessages] = useState(messages);
 
   useEffect(() => {
-    scrollToBottom();
+    setLocalMessages(messages);
   }, [messages]);
 
   useEffect(() => {
-    socket.on('new_message', (newMessage) => {
-      if (newMessage.conversation_id === conversation?.id) {
-        scrollToBottom();
-      }
-    });
+    scrollToBottom();
+  }, [localMessages]);
 
-    return () => {
-      socket.off('new_message');
-    };
+  useEffect(() => {
+    if (conversation?.id) {
+      socket.on('new_message', (newMessage) => {
+        if (newMessage.conversation_id === conversation.id) {
+          setLocalMessages(prev => {
+            const messageExists = prev.some(msg => msg.id === newMessage.id);
+            if (messageExists) return prev;
+            
+            return [...prev, {
+              id: newMessage.id,
+              conversation_id: newMessage.conversation_id,
+              sender_id: newMessage.sender_id,
+              message: newMessage.message,
+              username: newMessage.username || newMessage.sender_name,
+              created_at: newMessage.created_at,
+              is_read: false
+            }];
+          });
+          scrollToBottom();
+        }
+      });
+
+      return () => {
+        socket.off('new_message');
+      };
+    }
   }, [conversation?.id, socket]);
 
   const scrollToBottom = () => {
@@ -86,11 +107,16 @@ export const AdminChatBox = ({
       const response = await chatService.sendMessage(messageData);
       
       if (response.isSuccess) {
-        socket.emit('send_message', {
+        const newMessage = {
           id: response.data.id,
           ...messageData,
-          created_at: new Date().toISOString()
-        });
+          created_at: new Date().toISOString(),
+          is_read: false
+        };
+        
+        setLocalMessages(prev => [...prev, newMessage]);
+        
+        socket.emit('send_message', newMessage);
         
         onMessageSent();
         scrollToBottom();
@@ -121,7 +147,7 @@ export const AdminChatBox = ({
           gap: 0.5
         }}
       >
-        {messages.map((msg, index) => (
+        {localMessages.map((msg, index) => (
           <Box
             key={msg.id}
             sx={{
@@ -131,8 +157,7 @@ export const AdminChatBox = ({
               gap: 0.5
             }}
           >
-            {/* Hiển thị thời gian nếu cách message trước đó > 5 phút */}
-            {index === 0 || new Date(msg.created_at).getTime() - new Date(messages[index - 1].created_at).getTime() > 300000 ? (
+            {index === 0 || new Date(msg.created_at).getTime() - new Date(localMessages[index - 1].created_at).getTime() > 300000 ? (
               <Typography variant="caption" color="text.secondary" sx={{ px: 2 }}>
                 {formatMessageTime(msg.created_at)}
               </Typography>
