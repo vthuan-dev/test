@@ -230,7 +230,9 @@ const AdminChat = () => {
                   conversations={conversations}
                   selectedConversation={selectedConversation}
                   onSelectConversation={handleSelectConversation}
+                  onConversationsUpdate={setConversations}
                   loading={loading}
+                  socket={socket}
                 />
               </Box>
             </Grid>

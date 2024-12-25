@@ -153,6 +153,30 @@ class ChatService {
       throw error;
     }
   }
+
+  // Cập nhật trạng thái conversation
+  async updateConversationStatus(conversation_id: number, data: {
+    last_message?: string;
+    unread_count?: number;
+  }): Promise<void> {
+    try {
+      await axiosInstance.put(`/chat/conversations/${conversation_id}/status`, data);
+    } catch (error) {
+      console.error('Error updating conversation status:', error);
+      throw error;
+    }
+  }
+
+  // Thêm method để lấy tin nhắn realtime
+  async getRealtimeMessages(conversation_id: number): Promise<AxiosResponseData<Message[]>> {
+    try {
+      const response = await axiosInstance.get(`/chat/messages/${conversation_id}/realtime`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting realtime messages:', error);
+      throw error;
+    }
+  }
 }
 
 // Export single instance

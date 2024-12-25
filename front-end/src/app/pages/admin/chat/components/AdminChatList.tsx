@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Box, List, ListItem, ListItemText, Typography, CircularProgress } from '@mui/material';
 import { Conversation } from '~/services/chat.service';
 
@@ -6,14 +6,18 @@ interface AdminChatListProps {
   conversations: Conversation[];
   selectedConversation: Conversation | null;
   onSelectConversation: (conversation: Conversation) => void;
+  onConversationsUpdate: (conversations: Conversation[]) => void;
   loading: boolean;
+  socket: any;
 }
 
 export const AdminChatList: React.FC<AdminChatListProps> = ({
   conversations = [],
   selectedConversation,
   onSelectConversation,
-  loading
+  onConversationsUpdate,
+  loading,
+  socket
 }) => {
   if (loading) {
     return (
@@ -36,6 +40,30 @@ export const AdminChatList: React.FC<AdminChatListProps> = ({
       </Box>
     );
   }
+
+  useEffect(() => {
+    if (socket) {
+      socket.on('new_message', (message) => {
+        const updatedConversations = conversations.map(conv => {
+          if (conv.id === message.conversation_id) {
+            return {
+              ...conv,
+              last_message: message.message,
+              last_message_time: message.created_at,
+              unread_count: selectedConversation?.id === conv.id ? 0 : conv.unread_count + 1
+            };
+          }
+          return conv;
+        });
+        
+        onConversationsUpdate(updatedConversations);
+      });
+
+      return () => {
+        socket.off('new_message');
+      };
+    }
+  }, [conversations, selectedConversation, socket]);
 
   return (
     <Box sx={{ 

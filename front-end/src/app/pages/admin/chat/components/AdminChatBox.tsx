@@ -52,6 +52,18 @@ export const AdminChatBox = ({
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    socket.on('new_message', (newMessage) => {
+      if (newMessage.conversation_id === conversation?.id) {
+        scrollToBottom();
+      }
+    });
+
+    return () => {
+      socket.off('new_message');
+    };
+  }, [conversation?.id, socket]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -67,7 +79,8 @@ export const AdminChatBox = ({
       const messageData = {
         conversation_id: conversation.id,
         sender_id: currentUser.id,
-        message: messageText
+        message: messageText,
+        username: currentUser.username
       };
 
       const response = await chatService.sendMessage(messageData);
@@ -76,11 +89,11 @@ export const AdminChatBox = ({
         socket.emit('send_message', {
           id: response.data.id,
           ...messageData,
-          sender_name: currentUser.username,
           created_at: new Date().toISOString()
         });
         
         onMessageSent();
+        scrollToBottom();
       }
     } catch (error) {
       console.error('Error sending message:', error);

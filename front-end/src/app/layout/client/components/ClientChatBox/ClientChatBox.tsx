@@ -34,6 +34,7 @@ const ClientChatBox = () => {
   
   useEffect(() => {
     if (user?.id && isOpen) {
+      console.log('Initializing chat for user:', user.id);
       initializeChat();
     }
   }, [user, isOpen]);
@@ -45,11 +46,22 @@ const ClientChatBox = () => {
       
       socket.on('new_message', (data) => {
         console.log('Received new message:', data);
-        // Only add message if it's from another user
-        if (data.sender_id !== user?.id) {
-          setMessages(prev => [...prev, data]);
-          scrollToBottom();
-        }
+        setMessages(prev => {
+          // Kiểm tra tin nhắn đã tồn tại chưa
+          const messageExists = prev.some(msg => msg.id === data.id);
+          if (messageExists) return prev;
+
+          return [...prev, {
+            id: data.id,
+            conversation_id: data.conversation_id,
+            sender_id: data.sender_id,
+            message: data.message,
+            is_read: false,
+            created_at: data.created_at,
+            sender_name: data.username || data.sender_name
+          }];
+        });
+        scrollToBottom();
       });
       
       return () => {
@@ -84,17 +96,23 @@ const ClientChatBox = () => {
 
   const initializeChat = async () => {
     try {
+      setLoading(true);
       // Create or get existing conversation
       const convResponse = await chatService.createConversation(user.id);
-      setConversation(convResponse.data);
-      
-      // Get messages
-      if (convResponse.data.id) {
+      if (convResponse.data) {
+        setConversation(convResponse.data);
+        
+        // Get messages
         const msgResponse = await chatService.getMessages(convResponse.data.id);
-        setMessages(msgResponse.data.messages || []);
+        if (msgResponse && Array.isArray(msgResponse.data)) {
+          setMessages(msgResponse.data);
+        }
       }
     } catch (error) {
       console.error('Error initializing chat:', error);
+      setError('Không thể kết nối tới server chat');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -180,6 +198,10 @@ const ClientChatBox = () => {
     }
   };
 
+  useEffect(() => {
+    console.log('Current messages:', messages);
+  }, [messages]);
+
   return (
     <Box sx={{ position: 'fixed', bottom: 20, right: 20, zIndex: 1000 }}>
       {!isOpen ? (
@@ -219,13 +241,22 @@ const ClientChatBox = () => {
             flexDirection: 'column',
             gap: 1
           }}>
-            {messages.map((msg) => (
-              <MessageBubble 
-                key={msg.id} 
-                message={msg} 
-                currentUser={user} 
-              />
-            ))}
+            {messages.length > 0 ? (
+              messages.map((msg) => (
+                <MessageBubble 
+                  key={msg.id} 
+                  message={{
+                    ...msg,
+                    sender_name: msg.sender_name || (msg.sender_id === user.id ? user.username : 'Admin')
+                  }}
+                  currentUser={user} 
+                />
+              ))
+            ) : (
+              <Typography variant="body2" color="text.secondary" align="center">
+                Chưa có tin nhắn nào
+              </Typography>
+            )}
             
             {isTyping && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pl: 2 }}>
