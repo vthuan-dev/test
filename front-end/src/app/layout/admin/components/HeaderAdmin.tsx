@@ -28,7 +28,6 @@ import { ROUTE_PATH } from '@constants';
 
 const HeaderAdmin = () => {
    const { authLogout, user } = useAuth();
-
    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
    const isOpen = Boolean(anchorEl);
 
@@ -52,69 +51,151 @@ const HeaderAdmin = () => {
    return (
       <Box
          component="header"
-         sx={({ base }) => ({
+         sx={{
             width: '100%',
-            padding: 1,
-            display: 'flex',
-            alignItems: 'center',
-         })}
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1000,
+            background: 'linear-gradient(135deg, #1a1f3c 0%, #141728 100%)',
+            borderBottom: '1px solid rgba(255,255,255,0.05)',
+            backdropFilter: 'blur(10px)',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.1)',
+         }}
       >
          <Container
-            sx={({ base }) => ({ display: 'flex', alignItems: 'center', paddingY: 0, minHeight: base.header.height })}
+            sx={{
+               display: 'flex',
+               alignItems: 'center',
+               minHeight: '64px',
+               padding: '8px 24px',
+            }}
          >
-            <Grid container spacing={2}>
+            <Grid container spacing={2} alignItems="center">
                <Grid item xs={2}>
                   <Link to="/">
-                     <Image src={stillGamingNoBack} alt="logo" />
+                     <Image 
+                        src={stillGamingNoBack} 
+                        alt="logo"
+                        sx={{
+                           height: '40px',
+                           transition: 'all 0.3s ease',
+                           '&:hover': {
+                              transform: 'scale(1.05)',
+                              filter: 'brightness(1.2)'
+                           }
+                        }}
+                     />
                   </Link>
                </Grid>
-               <Grid item xs={9} sx={{ display: 'flex', alignItems: 'center' }}>
+               <Grid item xs={9}>
                   {/* <HeaderMenu /> */}
                </Grid>
-               <Grid item xs={1} sx={{ display: 'flex', alignItems: 'center' }}>
-                  <AsideHeader>
-                     <Stack sx={{ flexDirection: 'row', px: 3 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'flex-end', textAlign: 'center' }}>
-                           <Tooltip title="Account settings">
-                              <IconButton
-                                 onClick={handleClick}
-                                 size="small"
-                                 sx={{ ml: 2 }}
-                                 aria-controls={isOpen ? 'account-menu' : undefined}
-                                 aria-haspopup="true"
-                                 aria-expanded={isOpen ? 'true' : undefined}
-                              >
-                                 <Avatar sx={{ width: 28, height: 28, textTransform: 'uppercase' }} src={''}>
-                                    {user?.username.split('')[0]}
-                                 </Avatar>
-                              </IconButton>
-                           </Tooltip>
-                        </Box>
-                        <Menu
-                           anchorEl={anchorEl}
-                           id="account-menu"
-                           open={isOpen}
-                           onClose={handleClose}
-                           sx={{ zIndex: 999999 }}
-                           PaperProps={stylePaperProps}
-                           transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-                           anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+               <Grid item xs={1} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Box sx={{ position: 'relative' }}>
+                     <Tooltip title="Cài đặt tài khoản">
+                        <IconButton
+                           onClick={handleClick}
+                           size="small"
+                           sx={{
+                              padding: '8px',
+                              transition: 'all 0.3s ease',
+                              '&:hover': {
+                                 background: 'rgba(0,255,136,0.1)',
+                              }
+                           }}
                         >
-                           <MenuItem component={Link} to={ROUTE_PATH.USER_PROFILE} onClick={handleRedirectProfile}>
-                              <ListItemIcon>
-                                 <AccountCircleOutlinedIcon fontSize="small" />
-                              </ListItemIcon>
-                              Tài khoản
-                           </MenuItem>
-                           <MenuItem onClick={handleClickLogout}>
-                              <ListItemIcon>
-                                 <Logout fontSize="small" />
-                              </ListItemIcon>
-                              Đăng xuất
-                           </MenuItem>
-                        </Menu>
-                     </Stack>
-                  </AsideHeader>
+                           <Avatar 
+                              sx={{
+                                 width: 36,
+                                 height: 36,
+                                 fontSize: '1rem',
+                                 fontWeight: 600,
+                                 background: 'linear-gradient(135deg, #00ff88 0%, #00b8ff 100%)',
+                                 border: '2px solid rgba(255,255,255,0.1)',
+                                 transition: 'all 0.3s ease',
+                                 '&:hover': {
+                                    borderColor: '#00ff88',
+                                    transform: 'scale(1.05)'
+                                 }
+                              }}
+                           >
+                              {user?.username.split('')[0].toUpperCase()}
+                           </Avatar>
+                        </IconButton>
+                     </Tooltip>
+
+                     <Menu
+                        anchorEl={anchorEl}
+                        id="account-menu"
+                        open={isOpen}
+                        onClose={handleClose}
+                        onClick={handleClose}
+                        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                        sx={{
+                           '& .MuiPaper-root': {
+                              background: 'linear-gradient(135deg, #1a1f3c 0%, #141728 100%)',
+                              borderRadius: 2,
+                              border: '1px solid rgba(255,255,255,0.05)',
+                              boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
+                              backdropFilter: 'blur(10px)',
+                              mt: 1.5,
+                              minWidth: 200,
+                           }
+                        }}
+                     >
+                        <MenuItem 
+                           component={Link} 
+                           to={ROUTE_PATH.USER_PROFILE}
+                           onClick={handleRedirectProfile}
+                           sx={{
+                              color: '#fff',
+                              gap: 2,
+                              transition: 'all 0.3s ease',
+                              '&:hover': {
+                                 background: 'rgba(0,255,136,0.1)',
+                                 color: '#00ff88',
+                                 '& .MuiListItemIcon-root': {
+                                    color: '#00ff88'
+                                 }
+                              }
+                           }}
+                        >
+                           <ListItemIcon>
+                              <AccountCircleOutlinedIcon 
+                                 fontSize="small" 
+                                 sx={{ color: 'rgba(255,255,255,0.7)' }}
+                              />
+                           </ListItemIcon>
+                           Tài khoản
+                        </MenuItem>
+                        <MenuItem 
+                           onClick={handleClickLogout}
+                           sx={{
+                              color: '#fff',
+                              gap: 2,
+                              transition: 'all 0.3s ease',
+                              '&:hover': {
+                                 background: 'rgba(255,59,48,0.1)',
+                                 color: '#ff3b30',
+                                 '& .MuiListItemIcon-root': {
+                                    color: '#ff3b30'
+                                 }
+                              }
+                           }}
+                        >
+                           <ListItemIcon>
+                              <Logout 
+                                 fontSize="small" 
+                                 sx={{ color: 'rgba(255,255,255,0.7)' }}
+                              />
+                           </ListItemIcon>
+                           Đăng xuất
+                        </MenuItem>
+                     </Menu>
+                  </Box>
                </Grid>
             </Grid>
          </Container>

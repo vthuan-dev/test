@@ -213,17 +213,34 @@ export const AdminChatBox = ({
       height: '100%',
       display: 'flex',
       flexDirection: 'column',
-      bgcolor: '#f5f5f5'
+      bgcolor: '#141728', // Dark theme background
+      borderRadius: 2,
+      overflow: 'hidden',
+      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
     }}>
       <Box 
         ref={chatContainerRef}
         sx={{ 
           flex: 1,
           overflow: 'auto',
-          p: 1.5,
+          p: 2,
           display: 'flex',
           flexDirection: 'column',
-          gap: 0.5
+          gap: 1,
+          '&::-webkit-scrollbar': {
+            width: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'rgba(255,255,255,0.05)',
+            borderRadius: '10px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'rgba(255,255,255,0.1)',
+            borderRadius: '10px',
+            '&:hover': {
+              background: 'rgba(255,255,255,0.15)',
+            }
+          }
         }}
       >
         {localMessages.map((msg, index) => (
@@ -233,11 +250,27 @@ export const AdminChatBox = ({
               display: 'flex',
               flexDirection: 'column',
               alignItems: msg.sender_id === currentUser.id ? 'flex-end' : 'flex-start',
-              gap: 0.5
+              gap: 0.5,
+              animation: 'fadeIn 0.3s ease-out',
+              '@keyframes fadeIn': {
+                from: { opacity: 0, transform: 'translateY(10px)' },
+                to: { opacity: 1, transform: 'translateY(0)' }
+              }
             }}
           >
             {index === 0 || new Date(msg.created_at).getTime() - new Date(localMessages[index - 1].created_at).getTime() > 300000 ? (
-              <Typography variant="caption" color="text.secondary" sx={{ px: 2 }}>
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  px: 2,
+                  py: 0.5,
+                  color: 'rgba(255,255,255,0.5)',
+                  fontSize: '0.75rem',
+                  background: 'rgba(255,255,255,0.05)',
+                  borderRadius: 5,
+                  backdropFilter: 'blur(10px)'
+                }}
+              >
                 {formatMessageTime(msg.created_at)}
               </Typography>
             ) : null}
@@ -245,13 +278,17 @@ export const AdminChatBox = ({
             <Box sx={{ 
               display: 'flex',
               alignItems: 'flex-end',
-              gap: 0.5,
-              maxWidth: '60%'
+              gap: 1,
+              maxWidth: '70%'
             }}>
               {msg.sender_id !== currentUser.id && (
                 <Avatar 
-                  sx={{ width: 28, height: 28 }}
-                  alt={msg.username}
+                  sx={{ 
+                    width: 32, 
+                    height: 32,
+                    border: '2px solid rgba(255,255,255,0.1)',
+                    background: 'linear-gradient(45deg, #FF6B6B, #4ECDC4)'
+                  }}
                 >
                   {msg.username?.[0]?.toUpperCase()}
                 </Avatar>
@@ -260,16 +297,49 @@ export const AdminChatBox = ({
               <Paper
                 elevation={0}
                 sx={{
-                  p: 1,
-                  borderRadius: 1.5,
-                  bgcolor: msg.sender_id === currentUser.id ? '#0084ff' : '#ffffff',
-                  color: msg.sender_id === currentUser.id ? '#ffffff' : 'inherit',
+                  p: 1.5,
+                  borderRadius: 2,
+                  bgcolor: msg.sender_id === currentUser.id 
+                    ? 'linear-gradient(135deg, #00ff88 0%, #00b8ff 100%)'
+                    : 'rgba(255,255,255,0.05)',
+                  color: msg.sender_id === currentUser.id 
+                    ? '#000'
+                    : '#fff',
                   maxWidth: '100%',
                   wordBreak: 'break-word',
-                  fontSize: '0.9rem'
+                  fontSize: '0.95rem',
+                  backdropFilter: 'blur(10px)',
+                  border: msg.sender_id === currentUser.id
+                    ? 'none'
+                    : '1px solid rgba(255,255,255,0.1)',
+                  boxShadow: msg.sender_id === currentUser.id
+                    ? '0 4px 12px rgba(0,255,136,0.2)'
+                    : '0 4px 12px rgba(0,0,0,0.1)',
+                  position: 'relative',
+                  '&::before': msg.sender_id === currentUser.id ? {
+                    content: '""',
+                    position: 'absolute',
+                    inset: 0,
+                    borderRadius: 'inherit',
+                    padding: '2px',
+                    background: 'linear-gradient(135deg, #00ff88 0%, #00b8ff 100%)',
+                    WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                    WebkitMaskComposite: 'xor',
+                    maskComposite: 'exclude',
+                  } : {}
                 }}
               >
-                <Typography sx={{ fontSize: 'inherit' }}>{msg.message}</Typography>
+                <Typography 
+                  sx={{ 
+                    fontSize: 'inherit',
+                    fontWeight: msg.sender_id === currentUser.id ? 500 : 400,
+                    textShadow: msg.sender_id === currentUser.id 
+                      ? '0 1px 2px rgba(0,0,0,0.1)'
+                      : 'none'
+                  }}
+                >
+                  {msg.message}
+                </Typography>
               </Paper>
             </Box>
           </Box>
@@ -279,15 +349,15 @@ export const AdminChatBox = ({
 
       <Box 
         sx={{ 
-          p: 1.5,
-          bgcolor: 'background.paper',
-          borderTop: 1,
-          borderColor: 'divider'
+          p: 2,
+          bgcolor: 'rgba(255,255,255,0.02)',
+          borderTop: '1px solid rgba(255,255,255,0.05)',
+          backdropFilter: 'blur(10px)'
         }}
       >
         <TextField
           inputRef={inputRef}
-          size="small"
+          size="medium"
           fullWidth
           multiline
           maxRows={4}
@@ -299,9 +369,29 @@ export const AdminChatBox = ({
           autoFocus
           sx={{
             '& .MuiOutlinedInput-root': {
-              borderRadius: 2,
-              bgcolor: '#f5f5f5',
-              fontSize: '0.9rem'
+              borderRadius: 3,
+              bgcolor: 'rgba(255,255,255,0.05)',
+              fontSize: '0.95rem',
+              color: '#fff',
+              '&:hover': {
+                bgcolor: 'rgba(255,255,255,0.08)',
+              },
+              '& fieldset': {
+                border: '1px solid rgba(255,255,255,0.1)',
+              },
+              '&:hover fieldset': {
+                border: '1px solid rgba(255,255,255,0.2)',
+              },
+              '&.Mui-focused fieldset': {
+                border: '2px solid #00ff88',
+              }
+            },
+            '& .MuiInputBase-input': {
+              color: '#fff',
+              '&::placeholder': {
+                color: 'rgba(255,255,255,0.5)',
+                opacity: 1
+              }
             }
           }}
           InputProps={{
@@ -309,10 +399,23 @@ export const AdminChatBox = ({
               <IconButton 
                 onClick={handleSend}
                 disabled={!message.trim() || loading}
-                color="primary"
+                sx={{
+                  color: '#00ff88',
+                  '&:hover': {
+                    bgcolor: 'rgba(0,255,136,0.1)',
+                  },
+                  '&.Mui-disabled': {
+                    color: 'rgba(255,255,255,0.2)'
+                  }
+                }}
               >
                 {loading ? (
-                  <CircularProgress size={24} />
+                  <CircularProgress 
+                    size={24}
+                    sx={{
+                      color: '#00ff88'
+                    }}
+                  />
                 ) : (
                   <SendIcon />
                 )}

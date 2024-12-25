@@ -194,12 +194,13 @@ const AdminChat = () => {
       <Box 
         sx={{ 
           height: 'calc(100vh - 280px)',
-          maxWidth: '1200px',
+          maxWidth: '1400px',
           margin: '0 auto',
-          bgcolor: 'background.default',
-          borderRadius: 2,
+          bgcolor: '#0f1123',
+          borderRadius: 3,
           overflow: 'hidden',
-          boxShadow: theme.shadows[3]
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+          border: '1px solid rgba(255,255,255,0.05)'
         }}
       >
         <ErrorBoundary>
@@ -209,33 +210,49 @@ const AdminChat = () => {
               item 
               xs={4}
               sx={{ 
-                borderRight: 1, 
-                borderColor: 'divider',
-                bgcolor: 'background.paper',
+                borderRight: '1px solid rgba(255,255,255,0.05)',
+                bgcolor: '#141728',
                 display: 'flex',
                 flexDirection: 'column',
-                maxWidth: '300px'
+                maxWidth: '350px',
+                transition: 'all 0.3s ease'
               }}
             >
               <Box sx={{ 
-                p: 2, 
-                borderBottom: 1, 
-                borderColor: 'divider',
-                bgcolor: 'background.paper'
+                p: 2.5,
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                bgcolor: 'rgba(255,255,255,0.02)',
+                backdropFilter: 'blur(10px)'
               }}>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                <Typography 
+                  variant="h6" 
+                  sx={{ 
+                    fontWeight: 600,
+                    color: '#fff',
+                    fontSize: '1.1rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}
+                >
                   Tin nhắn
                 </Typography>
               </Box>
+
               <Box sx={{ 
                 flexGrow: 1,
                 overflow: 'auto',
                 '&::-webkit-scrollbar': {
                   width: '6px',
                 },
+                '&::-webkit-scrollbar-track': {
+                  backgroundColor: 'rgba(255,255,255,0.02)',
+                },
                 '&::-webkit-scrollbar-thumb': {
-                  backgroundColor: 'rgba(0,0,0,0.2)',
+                  backgroundColor: 'rgba(255,255,255,0.1)',
                   borderRadius: '3px',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255,255,255,0.15)',
+                  }
                 }
               }}>
                 <AdminChatList 
@@ -257,29 +274,65 @@ const AdminChat = () => {
                   height: '100%',
                   display: 'flex',
                   flexDirection: 'column',
-                  bgcolor: 'background.default',
-                  maxWidth: '900px',
-                  position: 'relative'
+                  bgcolor: '#141728',
+                  position: 'relative',
+                  borderRadius: 0
                 }}
               >
                 {selectedConversation ? (
                   <>
                     {/* Header chat */}
                     <Box sx={{ 
-                      p: 1.5,
-                      borderBottom: 1, 
-                      borderColor: 'divider',
-                      bgcolor: 'background.paper'
+                      p: 2,
+                      borderBottom: '1px solid rgba(255,255,255,0.05)',
+                      bgcolor: 'rgba(255,255,255,0.02)',
+                      backdropFilter: 'blur(10px)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2
                     }}>
-                      <Typography variant="h6" sx={{ fontSize: '1.1rem' }}>
-                        Chat với {selectedConversation.user_name}
-                      </Typography>
+                      <Box sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        background: 'linear-gradient(45deg, #FF6B6B, #4ECDC4)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.2rem',
+                        color: '#fff',
+                        fontWeight: 'bold',
+                        border: '2px solid rgba(255,255,255,0.1)'
+                      }}>
+                        {selectedConversation.user_name?.[0]?.toUpperCase()}
+                      </Box>
+                      <Box>
+                        <Typography 
+                          variant="h6" 
+                          sx={{ 
+                            fontSize: '1.1rem',
+                            color: '#fff',
+                            fontWeight: 500
+                          }}
+                        >
+                          {selectedConversation.user_name}
+                        </Typography>
+                        <Typography 
+                          variant="caption"
+                          sx={{ 
+                            color: 'rgba(255,255,255,0.5)',
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          Online
+                        </Typography>
+                      </Box>
                     </Box>
 
                     {/* Messages container */}
                     <Box sx={{ 
                       position: 'absolute',
-                      top: '50px',
+                      top: '73px',
                       bottom: '0',
                       left: 0,
                       right: 0,
@@ -303,17 +356,20 @@ const AdminChat = () => {
                     justifyContent="center" 
                     height="100%"
                     sx={{ 
-                      bgcolor: 'background.paper',
-                      borderRadius: 1,
-                      p: 2
+                      bgcolor: 'rgba(255,255,255,0.02)',
+                      borderRadius: 2,
+                      p: 4,
+                      m: 2,
+                      border: '1px dashed rgba(255,255,255,0.1)'
                     }}
                   >
                     <Typography 
-                      color="text.secondary"
                       sx={{ 
                         textAlign: 'center',
-                        maxWidth: 250,
-                        fontSize: '0.9rem'
+                        maxWidth: 300,
+                        fontSize: '0.95rem',
+                        color: 'rgba(255,255,255,0.5)',
+                        lineHeight: 1.6
                       }}
                     >
                       Chọn một cuộc hội thoại để bắt đầu chat

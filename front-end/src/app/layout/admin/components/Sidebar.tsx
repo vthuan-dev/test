@@ -31,9 +31,26 @@ const Sidebar = () => {
             top: 64,
             bottom: 0,
             left: 0,
-            width: 260,
-            padding: '24px 12px',
+            width: 280,
+            padding: '24px 16px',
             gap: 1,
+            background: 'linear-gradient(135deg, #1a1f3c 0%, #141728 100%)',
+            borderRight: '1px solid rgba(255,255,255,0.05)',
+            boxShadow: '4px 0 24px rgba(0,0,0,0.1)',
+            overflowY: 'auto',
+            '&::-webkit-scrollbar': {
+              width: '6px',
+            },
+            '&::-webkit-scrollbar-track': {
+              background: 'rgba(255,255,255,0.05)',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: 'rgba(255,255,255,0.1)',
+              borderRadius: '3px',
+              '&:hover': {
+                background: 'rgba(255,255,255,0.15)',
+              }
+            }
          }}
       >
          {sideBars.map((link) => (
@@ -70,26 +87,77 @@ const SidebarLink = ({ text, to, Icon }: SidebarLinkProps) => {
 const StyledLink = styled(Box)({
    display: 'flex',
    alignItems: 'center',
-   borderRadius: 4,
-   transition: 'background-color 0.3s ease',
-   color: '#333',
+   width: '100%',
+   borderRadius: 8,
+   transition: 'all 0.3s ease',
+   color: 'rgba(255,255,255,0.7)',
 });
 
 const StyledLinkOne = styled(NavLink)(({ theme }) => ({
    display: 'flex',
    alignItems: 'center',
-   padding: '8px 16px',
-   borderRadius: 4,
-   transition: 'background-color 0.3s ease',
-   color: '#333',
-   textDecoration: 'none',
-   '&:hover': {
-      backgroundColor: '#f0f0f0',
+   padding: '12px 16px',
+   borderRadius: 12,
+   width: '100%',
+   transition: 'all 0.3s ease',
+   position: 'relative',
+   overflow: 'hidden',
+   
+   '&::before': {
+     content: '""',
+     position: 'absolute',
+     top: 0,
+     left: 0,
+     width: '100%',
+     height: '100%',
+     background: 'rgba(255,255,255,0.05)',
+     opacity: 0,
+     transition: 'all 0.3s ease',
    },
+
+   '&:hover': {
+     transform: 'translateX(5px)',
+     '&::before': {
+       opacity: 1,
+     },
+     '& .MuiTypography-root': {
+       color: '#00ff88',
+     },
+     '& svg': {
+       color: '#00ff88',
+     }
+   },
+
+   '& svg': {
+     color: 'rgba(255,255,255,0.7)',
+     transition: 'all 0.3s ease',
+     fontSize: '1.3rem',
+   },
+
+   '& .MuiTypography-root': {
+     fontSize: '0.95rem',
+     fontWeight: 500,
+     marginLeft: '16px',
+     color: 'rgba(255,255,255,0.7)',
+     transition: 'all 0.3s ease',
+     letterSpacing: '0.3px',
+   },
+
    '&.active': {
-      backgroundColor: theme.palette.primary.main,
-      p: { color: 'white' },
-      svg: { color: 'white' },
+     background: 'linear-gradient(90deg, rgba(0,255,136,0.15) 0%, rgba(0,255,136,0.05) 100%)',
+     borderLeft: '3px solid #00ff88',
+     
+     '& .MuiTypography-root': {
+       color: '#00ff88',
+       fontWeight: 600,
+     },
+     '& svg': {
+       color: '#00ff88',
+     },
+
+     '&:hover': {
+       transform: 'none',
+     }
    },
 }));
 
