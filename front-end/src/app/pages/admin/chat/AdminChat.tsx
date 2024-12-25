@@ -46,27 +46,53 @@ const AdminChat = () => {
 
   const fetchConversations = async () => {
     try {
+      setLoading(true);
       const response = await chatService.getConversations(user.id, 1);
-      setConversations(response.data);
-      setLoading(false);
+      console.log('Raw API response:', response); // Debug log
+      
+      // Kiểm tra response data mới
+      if (response && Array.isArray(response.data)) {
+        setConversations(response.data);
+      } else {
+        console.warn('Invalid response format:', response);
+        setConversations([]);
+      }
     } catch (error) {
       console.error('Error fetching conversations:', error);
+      setConversations([]);
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleSelectConversation = async (conversation) => {
-    setSelectedConversation(conversation);
-    socket.emit('join_conversation', conversation.id);
-    
+  const handleSelectConversation = async (conversation: Conversation) => {
     try {
-      const response = await chatService.getMessages(conversation.id);
-      setMessages(response.data.messages);
+      setSelectedConversation(conversation);
+      socket.emit('join_conversation', conversation.id);
       
-      // Mark messages as read
-      await chatService.markMessagesAsRead(conversation.id, user.id);
+      // Lấy tin nhắn
+      const response = await chatService.getMessages(conversation.id);
+      console.log('Messages response:', response); // Debug log
+      
+      // Kiểm tra response format mới
+      if (response && response.data && Array.isArray(response.data)) {
+        setMessages(response.data);
+        
+        // Đánh dấu đã đọc
+        await chatService.markMessagesAsRead(conversation.id, user.id);
+        
+        // Emit socket event
+        socket.emit('messages_read', {
+          conversation_id: conversation.id,
+          user_id: user.id
+        });
+      } else {
+        console.warn('Invalid messages format:', response);
+        setMessages([]);
+      }
     } catch (error) {
       console.error('Error fetching messages:', error);
+      setMessages([]);
     }
   };
 

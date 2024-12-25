@@ -6,10 +6,15 @@ const axiosInstance = createInstance(import.meta.env.VITE_BASE_URL_API || '');
 export interface Conversation {
   id: number;
   user_id: number;
-  user_name: string;
-  unread_count: number;
-  last_message_time: string;
+  admin_id: number | null;
   status: string;
+  created_at: string;
+  updated_at: string | null;
+  user_name: string;
+  user_type: number;
+  unread_count: number;
+  last_message: string | null;
+  last_message_time: string | null;
 }
 
 export interface Message {
@@ -20,6 +25,7 @@ export interface Message {
   created_at: string;
   username: string;
   user_type: number;
+  is_read: boolean;
 }
 
 export interface AxiosResponseData<T> {
@@ -41,7 +47,23 @@ class ChatService {
       params.append('user_type', user_type.toString());
 
       const response = await axiosInstance.get('/chat/conversations', { params });
-      return response.data;
+      console.log('Raw API response:', response);
+
+      // Kiểm tra response format mới
+      if (response.data && response.data.isSuccess && Array.isArray(response.data.data)) {
+        return {
+          data: response.data.data,
+          message: response.data.message,
+          status: 200
+        };
+      }
+      
+      console.warn('Invalid response format:', response.data);
+      return {
+        data: [],
+        message: 'No conversations found',
+        status: 200
+      };
     } catch (error) {
       console.error('Error getting conversations:', error);
       throw error;
@@ -49,17 +71,26 @@ class ChatService {
   }
 
   // Lấy tin nhắn của cuộc hội thoại
-  async getMessages(conversation_id: number): Promise<AxiosResponseData<{
-    messages: Message[];
-    pagination: {
-      page: number;
-      limit: number;
-      total: number;
-    }
-  }>> {
+  async getMessages(conversation_id: number): Promise<AxiosResponseData<Message[]>> {
     try {
       const response = await axiosInstance.get(`/chat/messages/${conversation_id}`);
-      return response.data;
+      console.log('Raw messages response:', response); // Debug log
+
+      // Kiểm tra và trả về messages array
+      if (response.data && Array.isArray(response.data.data)) {
+        return {
+          data: response.data.data,
+          message: response.data.message || 'Success',
+          status: 200
+        };
+      }
+
+      console.warn('Invalid messages format:', response.data);
+      return {
+        data: [],
+        message: 'No messages found',
+        status: 200
+      };
     } catch (error) {
       console.error('Error getting messages:', error);
       throw error;
@@ -83,7 +114,7 @@ class ChatService {
     }
   }
 
-  // Đánh dấu tin nhắn đã đọc
+  // Đ��nh dấu tin nhắn đã đọc
   async markMessagesAsRead(conversation_id: number, user_id: number): Promise<void> {
     try {
       await axiosInstance.put(`/chat/messages/read/${conversation_id}`, {

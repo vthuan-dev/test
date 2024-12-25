@@ -10,7 +10,7 @@ interface AdminChatListProps {
 }
 
 export const AdminChatList: React.FC<AdminChatListProps> = ({
-  conversations = [], // Set default empty array
+  conversations = [],
   selectedConversation,
   onSelectConversation,
   loading
@@ -23,7 +23,11 @@ export const AdminChatList: React.FC<AdminChatListProps> = ({
     );
   }
 
-  if (!conversations || conversations.length === 0) {
+  // Debug log
+  console.log('Conversations in list:', conversations);
+
+  // Kiểm tra mảng conversations
+  if (!Array.isArray(conversations) || conversations.length === 0) {
     return (
       <Box p={2}>
         <Typography variant="body2" color="text.secondary">
@@ -57,9 +61,10 @@ export const AdminChatList: React.FC<AdminChatListProps> = ({
             }}
           >
             <ListItemText
-              primary={
-                <Typography variant="subtitle2">
-                  {conversation.user_name}
+              primary={conversation.user_name}
+              secondary={
+                <React.Fragment>
+                  {conversation.last_message || 'Chưa có tin nhắn'}
                   {conversation.unread_count > 0 && (
                     <Box
                       component="span"
@@ -76,12 +81,7 @@ export const AdminChatList: React.FC<AdminChatListProps> = ({
                       {conversation.unread_count}
                     </Box>
                   )}
-                </Typography>
-              }
-              secondary={
-                <Typography variant="body2" color="text.secondary" noWrap>
-                  {conversation.last_message || 'Chưa có tin nhắn'}
-                </Typography>
+                </React.Fragment>
               }
             />
           </ListItem>
