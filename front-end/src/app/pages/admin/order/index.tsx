@@ -58,99 +58,216 @@ const Order = () => {
 
    return (
       <BaseBreadcrumbs arialabel="Hóa đơn" breadcrumbs={breadcrumbs}>
-         <Box sx={{ border: '1px solid #d1cccc', borderRadius: 3 }}>
+         <Box sx={{ 
+            background: 'linear-gradient(135deg, #1a1f3c 0%, #141728 100%)',
+            borderRadius: '16px',
+            border: '1px solid rgba(255,255,255,0.05)',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.1)',
+            overflow: 'hidden'
+         }}>
             <TableContainer>
                <ScrollbarBase
                   sx={{
-                     'body::-webkit-scrollbar-track': {
-                        webkitBoxShadow: 'inset 0 0 6px rgba(0,0,0,0.3)',
-                        borderRadius: 10,
-                        backgroundColor: '#F5F5F5',
-                     },
                      width: '100%',
-                     flex: 1,
                      height: '500px',
+                     '&::-webkit-scrollbar': {
+                        width: '6px',
+                        height: '6px',
+                     },
+                     '&::-webkit-scrollbar-track': {
+                        background: 'rgba(255,255,255,0.05)',
+                        borderRadius: '3px',
+                     },
+                     '&::-webkit-scrollbar-thumb': {
+                        background: 'rgba(255,255,255,0.1)',
+                        borderRadius: '3px',
+                        '&:hover': {
+                           background: 'rgba(255,255,255,0.15)',
+                        }
+                     }
                   }}
                >
-                  <Table aria-label="simple table" sx={{ width: '100%', maxHeight: 440, overflow: 'hidden' }}>
+                  <Table sx={{ width: '100%' }}>
                      <TableHead>
-                        <TableRow>
-                           {/* Table Headers */}
-                           <TableCell sx={{ fontWeight: 600, fontSize: '18px' }} width={50}>
-                              STT
-                           </TableCell>
-                           <TableCell sx={{ fontWeight: 600, fontSize: '18px' }}>Mã hóa đơn</TableCell>
-                           <TableCell sx={{ fontWeight: 600, fontSize: '18px' }}>Khách hàng</TableCell>
-                           <TableCell sx={{ fontWeight: 600, fontSize: '18px' }}>Tổng Tiền</TableCell>
-                           <TableCell sx={{ fontWeight: 600, fontSize: '18px' }}>Trạng thái</TableCell>
-                           <TableCell sx={{ fontWeight: 600, fontSize: '18px' }}>Ngày tạo</TableCell>
-                           <TableCell sx={{ fontWeight: 600, fontSize: '18px' }} width={120}></TableCell>
+                        <TableRow sx={{
+                           background: 'rgba(255,255,255,0.02)',
+                           borderBottom: '1px solid rgba(255,255,255,0.05)',
+                        }}>
+                           <TableCell sx={{ 
+                              fontWeight: 600,
+                              fontSize: '0.9rem',
+                              color: '#fff',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px',
+                              padding: '16px',
+                              borderBottom: 'none'
+                           }} width={50}>STT</TableCell>
+                           <TableCell sx={{ 
+                              fontWeight: 600,
+                              fontSize: '0.9rem',
+                              color: '#fff',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px',
+                              padding: '16px',
+                              borderBottom: 'none'
+                           }}>Mã hóa đơn</TableCell>
+                           <TableCell sx={{ 
+                              fontWeight: 600,
+                              fontSize: '0.9rem',
+                              color: '#fff',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px',
+                              padding: '16px',
+                              borderBottom: 'none'
+                           }}>Khách hàng</TableCell>
+                           <TableCell sx={{ 
+                              fontWeight: 600,
+                              fontSize: '0.9rem',
+                              color: '#fff',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px',
+                              padding: '16px',
+                              borderBottom: 'none'
+                           }}>Tổng Tiền</TableCell>
+                           <TableCell sx={{ 
+                              fontWeight: 600,
+                              fontSize: '0.9rem',
+                              color: '#fff',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px',
+                              padding: '16px',
+                              borderBottom: 'none'
+                           }}>Trạng thái</TableCell>
+                           <TableCell sx={{ 
+                              fontWeight: 600,
+                              fontSize: '0.9rem',
+                              color: '#fff',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px',
+                              padding: '16px',
+                              borderBottom: 'none'
+                           }}>Ngày tạo</TableCell>
+                           <TableCell sx={{ 
+                              fontWeight: 600,
+                              fontSize: '0.9rem',
+                              color: '#fff',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px',
+                              padding: '16px',
+                              borderBottom: 'none'
+                           }} width={120}></TableCell>
                         </TableRow>
                      </TableHead>
                      <TableBody>
-                        {/* Table Data Rows */}
                         {sortedOrders.map((row, index) => {
-                              const currentStatus = row.status as OrderStatusKey | undefined;
-                              const nextStatus = currentStatus ? getNextStatus(currentStatus) : undefined;
+                           const currentStatus = row.status as OrderStatusKey | undefined;
+                           const nextStatus = currentStatus ? getNextStatus(currentStatus) : undefined;
 
-                              return (
-                                 <React.Fragment key={index}>
-                                    <TableRow
-                                       sx={{
-                                          '&:last-child td, &:last-child th': { border: 0 },
-                                          '& .MuiTableCell-root': { padding: '12px !important' },
-                                          borderBottom: '1px solid #d1cccc',
+                           return (
+                              <TableRow
+                                 key={index}
+                                 sx={{
+                                    transition: 'all 0.3s ease',
+                                    '&:hover': {
+                                       background: 'rgba(255,255,255,0.02)',
+                                    },
+                                    '& td': {
+                                       borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                       padding: '12px 16px',
+                                       color: 'rgba(255,255,255,0.7)',
+                                    }
+                                 }}
+                              >
+                                 <TableCell align="center">{index + 1}</TableCell>
+                                 <TableCell>{row.id}</TableCell>
+                                 <TableCell>{row.user_id}</TableCell>
+                                 <TableCell>
+                                    <Typography 
+                                       sx={{ 
+                                          color: '#00ff88',
+                                          fontWeight: 600,
+                                          fontSize: '0.95rem'
                                        }}
                                     >
-                                       <TableCell align="center" sx={{ borderBottom: '1px solid #d1cccc' }}>
-                                          {index + 1}
-                                       </TableCell>
-                                       <TableCell sx={{ borderBottom: '1px solid #d1cccc' }}>{row.id}</TableCell>
-                                       <TableCell sx={{ borderBottom: '1px solid #d1cccc' }}>{row.user_id}</TableCell>
-                                       <TableCell sx={{ borderBottom: '1px solid #d1cccc' }}>
-                                          <Typography color="error" fontWeight="600">
-                                             {Number(row.total_money)?.toLocaleString()}đ
-                                          </Typography>
-                                       </TableCell>
-                                       <TableCell>
-                                          <Chip
-                                             label={ORDER_STATUS_LABELS[nextStatus as never]}
-                                             color={statusButtonColors[nextStatus as never] || 'primary'}
-                                          />
-                                       </TableCell>
-                                       <TableCell sx={{ borderBottom: '1px solid #d1cccc' }}>
-                                          {dayjs(row.created_at).format('DD-MM-YYYY')}
-                                       </TableCell>
-                                       <TableCell sx={{ borderBottom: '1px solid #d1cccc' }}>
-                                          <Link to={ROUTE_PATH.ADMIN_ORDER + '/' + row.id}>
-                                             <IconButton>
-                                                <RemoveRedEyeIcon />
-                                             </IconButton>
-                                          </Link>
-                                       </TableCell>
-                                    </TableRow>
-                                 </React.Fragment>
-                              );
-                           })}
+                                       {Number(row.total_money)?.toLocaleString()}đ
+                                    </Typography>
+                                 </TableCell>
+                                 <TableCell>
+                                    <Chip
+                                       label={ORDER_STATUS_LABELS[nextStatus as never]}
+                                       color={statusButtonColors[nextStatus as never] || 'primary'}
+                                       sx={{
+                                          borderRadius: '6px',
+                                          fontWeight: 500,
+                                          fontSize: '0.85rem'
+                                       }}
+                                    />
+                                 </TableCell>
+                                 <TableCell>
+                                    {dayjs(row.created_at).format('DD-MM-YYYY')}
+                                 </TableCell>
+                                 <TableCell>
+                                    <Link to={ROUTE_PATH.ADMIN_ORDER + '/' + row.id}>
+                                       <IconButton
+                                          sx={{
+                                             color: 'rgba(255,255,255,0.7)',
+                                             transition: 'all 0.3s ease',
+                                             '&:hover': {
+                                                color: '#00ff88',
+                                                background: 'rgba(0,255,136,0.1)',
+                                             }
+                                          }}
+                                       >
+                                          <RemoveRedEyeIcon />
+                                       </IconButton>
+                                    </Link>
+                                 </TableCell>
+                              </TableRow>
+                           );
+                        })}
                      </TableBody>
                   </Table>
                </ScrollbarBase>
             </TableContainer>
          </Box>
-         {/* Pagination Controls */}
-         <Box display="flex" alignItems="center" justifyContent="end" gap={4} mt={2}>
-            <Box display="flex" gap="12px" alignItems="center">
-               <Box component="span" fontSize="14px">
-                  Trang {currentPage} trên {totalPage}
-               </Box>
-               <Pagination
-                  variant="outlined"
-                  onChange={(_, page) => setParams('page', String(page))}
-                  count={totalPage}
-                  page={Number(currentPage)}
-                  siblingCount={1}
-               />
-            </Box>
+
+         {/* Pagination */}
+         <Box 
+            sx={{
+               display: 'flex',
+               alignItems: 'center',
+               justifyContent: 'flex-end',
+               gap: 2,
+               mt: 3
+            }}
+         >
+            <Typography 
+               sx={{
+                  fontSize: '0.9rem',
+                  color: 'rgba(255,255,255,0.7)'
+               }}
+            >
+               Trang {currentPage} trên {totalPage}
+            </Typography>
+            <Pagination
+               count={totalPage}
+               page={Number(currentPage)}
+               onChange={(_, page) => setParams('page', String(page))}
+               sx={{
+                  '& .MuiPaginationItem-root': {
+                     color: 'rgba(255,255,255,0.7)',
+                     border: '1px solid rgba(255,255,255,0.05)',
+                     '&.Mui-selected': {
+                        background: 'rgba(0,255,136,0.1)',
+                        color: '#00ff88',
+                        borderColor: '#00ff88',
+                     },
+                     '&:hover': {
+                        background: 'rgba(255,255,255,0.05)',
+                     }
+                  }
+               }}
+            />
          </Box>
       </BaseBreadcrumbs>
    );
