@@ -86,17 +86,87 @@ export const create = async (req, res) => {
 export const getDetailById = async (req, res) => {
   try {
     const { id } = req.params;
-    const [room, product, detail] = await Promise.all([
-      orderModel.getRoomOrderDetail(id),
-      orderModel.getProductOrderDetail(id),
-      orderModel.findOne({ id }),
-    ]);
+    
+    const [orders] = await orderModel.connection.promise().query(`
+      SELECT 
+        o.id as order_id,
+        o.order_date,
+        o.status as order_status,
+        o.total_money as total_amount,
+        
+        u.username,
+        u.email,
+        u.is_vip,
+        u.vip_end_date,
+        
+        rod.id as order_detail_id,
+        rod.room_id,
+        r.room_name,
+        rod.start_time,
+        rod.end_time,
+        rod.total_time,
+        rod.total_price,
+        
+        p.product_name,
+        p.price as unit_price,
+        od.quantity,
+        od.price as product_total_price,
+        c.category_name as category
+      FROM orders o
+      LEFT JOIN user u ON o.user_id = u.id 
+      LEFT JOIN room_order_detail rod ON o.id = rod.order_id
+      LEFT JOIN room r ON rod.room_id = r.id
+      LEFT JOIN order_detail od ON o.id = od.order_id
+      LEFT JOIN product p ON od.product_id = p.id
+      LEFT JOIN category c ON p.category_id = c.id
+      WHERE o.id = ?
+    `, [id]);
+
+    if (!orders.length) {
+      return responseError(res, { message: "Không tìm thấy đơn hàng" });
+    }
+
+    const firstOrder = orders[0];
     const data = {
-      message: "Lấy danh sách thành công.",
-      data: { room, product, detail },
+      order_id: firstOrder.order_id,
+      order_date: firstOrder.order_date,
+      order_status: firstOrder.order_status,
+      total_amount: firstOrder.total_amount,
+      user: {
+        username: firstOrder.username,
+        email: firstOrder.email,
+        is_vip: firstOrder.is_vip,
+        vip_end_date: firstOrder.vip_end_date
+      },
+      products: orders
+        .filter(order => order.product_name)
+        .map(order => ({
+          product_name: order.product_name,
+          unit_price: order.unit_price,
+          quantity: order.quantity,
+          total_price: order.product_total_price,
+          category: order.category
+        })),
+      rooms: orders
+        .filter(order => order.room_id)
+        .map(order => ({
+          id: order.order_detail_id,
+          room_id: order.room_id,
+          room_name: order.room_name,
+          start_time: order.start_time,
+          end_time: order.end_time,
+          total_time: order.total_time,
+          total_price: order.total_price
+        }))
     };
-    responseSuccess(res, data);
+
+    return responseSuccess(res, {
+      message: "Lấy dữ liệu thành công",
+      data: data
+    });
+
   } catch (error) {
+    console.error("Get order detail error:", error);
     return responseError(res, error);
   }
 };
@@ -435,5 +505,72 @@ export const getUserOrders = async (req, res) => {
   } catch (error) {
     console.error("Lỗi khi lấy hóa đơn:", error);
     return res.status(500).json({ message: "Đã xảy ra lỗi khi lấy hóa đơn." });
+  }
+};
+
+export const getOrderDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const connection = await orderModel.connection.promise();
+
+    const [orders] = await connection.query(`
+      SELECT o.*, 
+        u.username, 
+        u.email,
+        u.phone,      -- Thêm trường phone
+        u.is_vip, 
+        u.vip_end_date,
+        rod.id as order_detail_id,
+        rod.room_id,
+        r.room_name,
+        rod.start_time,
+        rod.end_time,
+        rod.total_time,
+        rod.total_price
+      FROM orders o
+      LEFT JOIN user u ON o.user_id = u.id 
+      LEFT JOIN room_order_detail rod ON o.id = rod.order_id
+      LEFT JOIN room r ON rod.room_id = r.id
+      WHERE o.id = ?
+    `, [id]);
+
+    if (!orders.length) {
+      return responseError(res, { message: "Không tìm thấy đơn hàng" });
+    }
+
+    const response = {
+      order_id: orders[0].id,
+      order_date: orders[0].order_date,
+      order_status: orders[0].status,
+      total_amount: orders[0].total_money,
+      user: {
+        username: orders[0].username,
+        email: orders[0].email,
+        phone: orders[0].phone,    // Thêm phone vào response
+        is_vip: orders[0].is_vip,
+        vip_end_date: orders[0].vip_end_date
+      },
+      rooms: orders
+        .filter(order => order.room_id)
+        .map(order => ({
+          id: order.order_detail_id,
+          room_id: order.room_id,
+          room_name: order.room_name,
+          start_time: order.start_time,
+          end_time: order.end_time,
+          total_time: order.total_time,
+          total_price: order.total_price
+        })),
+      products: []  // Giữ mảng products rỗng vì không có sản phẩm
+    };
+
+    return responseSuccess(res, {
+      message: "Lấy dữ liệu thành công",
+      data: response
+    });
+
+  } catch (error) {
+    console.error("Get order detail error:", error);
+    return responseError(res, error);
   }
 };

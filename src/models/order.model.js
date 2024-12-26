@@ -10,14 +10,30 @@ class OrderModel extends BaseModel {
 
   getRoomOrderDetail(orderId) {
     return new Promise((resolve, reject) => {
-      const queryRoom = `SELECT * FROM cybergame.room_order_detail right join room on room.id = room_order_detail.room_id where room_order_detail.order_id = ${orderId}`;
-      this.connection.query(queryRoom, (error, result) => {
+      const query = `
+        SELECT 
+          rod.id,           -- ID của room_order_detail
+          r.id as room_id,  -- ID của room
+          r.room_name,
+          r.price as room_price,
+          rod.start_time,
+          rod.end_time,
+          rod.total_time,
+          rod.total_price,
+          r.status as room_status
+        FROM room_order_detail rod
+        INNER JOIN room r ON rod.room_id = r.id
+        WHERE rod.order_id = ?
+      `;
+
+      this.connection.query(query, [orderId], (error, result) => {
         if (error) {
           reject(error);
-        } else if (result && result?.length !== 0) {
+        } else if (result && result.length !== 0) {
           resolve(result);
+        } else {
+          resolve([]);
         }
-        resolve();
       });
     });
   }
@@ -125,6 +141,50 @@ LIMIT 5;`;
           resolve(result[0]); // Trả về trực tiếp object chứa total_revenue
         } else {
           resolve({ total_revenue: 0 }); // Trả về 0 nếu không có dữ liệu
+        }
+      });
+    });
+  }
+
+  getOrderDetail(orderId) {
+    return new Promise((resolve, reject) => {
+      const query = `
+        SELECT 
+          o.id as order_id,
+          o.user_id,
+          o.total_money,
+          o.order_date,
+          o.status as order_status,
+          o.payment_method,
+          o.payment_status,
+          o.description,
+          u.username,
+          u.email,
+          u.phone,
+          u.is_vip,
+          u.vip_end_date,
+          rod.id as room_detail_id,
+          rod.room_id,
+          r.room_name,
+          rod.start_time,
+          rod.end_time,
+          rod.total_time,
+          rod.total_price,
+          r.status as room_status
+        FROM orders o
+        LEFT JOIN user u ON o.user_id = u.id
+        LEFT JOIN room_order_detail rod ON o.id = rod.order_id
+        LEFT JOIN room r ON rod.room_id = r.id
+        WHERE o.id = ?
+      `;
+
+      this.connection.query(query, [orderId], (error, result) => {
+        if (error) {
+          reject(error);
+        } else if (result && result.length !== 0) {
+          resolve(result);
+        } else {
+          resolve([]);
         }
       });
     });

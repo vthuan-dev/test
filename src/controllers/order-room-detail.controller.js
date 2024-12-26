@@ -295,24 +295,38 @@ export const getAvailableRooms = async (req, res) => {
   try {
     const connection = await orderRoomModel.connection.promise();
     
-    // Lấy tất cả phòng và kiểm tra trạng thi hiện tại
+    // Sửa lại query để lấy đúng thông tin phòng và chi tiết đặt phòng
     const [rooms] = await connection.query(`
-      SELECT r.id, r.room_name, r.price, r.status,
+      SELECT 
+        r.id as room_id,           -- ID của phòng
+        r.room_name,
+        r.price,
+        r.status,
+        rod.id as order_detail_id, -- ID của room_order_detail
+        rod.start_time,
+        rod.end_time,
+        rod.order_id,              -- Thêm order_id để kiểm tra
         EXISTS (
           SELECT 1 
-          FROM room_order_detail rod 
-          WHERE rod.room_id = r.id 
-          AND NOW() BETWEEN rod.start_time AND rod.end_time
+          FROM room_order_detail rod2 
+          WHERE rod2.room_id = r.id 
+          AND NOW() BETWEEN rod2.start_time AND rod2.end_time
         ) as is_occupied
       FROM room r
+      LEFT JOIN room_order_detail rod ON r.id = rod.room_id
       WHERE r.status != 'INACTIVE'
+      ORDER BY r.id ASC
     `);
 
-    // Format lại response
+    // Format lại response để phù hợp với cấu trúc dữ liệu
     const formattedRooms = rooms.map(room => ({
-      id: room.id,
+      id: room.order_detail_id,    // ID của room_order_detail (có thể null)
+      room_id: room.room_id,       // ID của room (không null)
       name: room.room_name,
       price: room.price,
+      start_time: room.start_time,
+      end_time: room.end_time,
+      order_id: room.order_id,
       status: room.is_occupied ? 'Có người đặt' : 'Trống',
       originalStatus: room.status
     }));

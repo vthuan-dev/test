@@ -33,24 +33,33 @@ const breadcrumbs = [
 const Order = () => {
    const { setParams, searchParams } = useSearchParamsHook();
 
-   // Construct query parameters
-   const queryParam = new URLSearchParams({
-      page: String(searchParams.page ?? 1),
-      limit: String(10),
-      isPagination: String(true),
+   // Sửa lại query key và thêm enabled để tránh lỗi undefined
+   const { data: orders, isLoading } = useQuery<ResponseGetList<OrderItem>>({
+      queryKey: ['orders', searchParams.page], // Sửa query key
+      queryFn: async () => {
+         const queryParam = new URLSearchParams({
+            page: String(searchParams.page ?? 1),
+            limit: String(10),
+            isPagination: String(true),
+         });
+         const response = await getRequest(`/order?${queryParam}`);
+         return response;
+      },
+      enabled: true, // Thêm enabled
    });
 
-   // Fetch order data with pagination
-   const { data: orders } = useQuery<ResponseGetList<OrderItem>>({
-      queryKey: ['admnin-order', searchParams],
-      queryFn: () => getRequest('/order' + `?${queryParam}`),
-   });
-   console.log('orders:', orders)
+   // Thêm xử lý loading state
+   if (isLoading) {
+      return <Box>Loading...</Box>;
+   }
 
-   const sortedOrders = orders?.data ? orders.data.sort((a, b) => {
-      // So sánh ngày giữa 2 object
-      return dayjs(a.created_at).isBefore(dayjs(b.created_at)) ? 1 : -1;
-    }) : []
+   // Sửa lại cách sort và kiểm tra null
+   const sortedOrders = React.useMemo(() => {
+      if (!orders?.data) return [];
+      return [...orders.data].sort((a, b) => 
+         dayjs(b.created_at).valueOf() - dayjs(a.created_at).valueOf()
+      );
+   }, [orders?.data]);
 
    // Default values for pagination
    const currentPage = searchParams.page ?? 1;
@@ -159,72 +168,80 @@ const Order = () => {
                         </TableRow>
                      </TableHead>
                      <TableBody>
-                        {sortedOrders.map((row, index) => {
-                           const currentStatus = row.status as OrderStatusKey | undefined;
-                           const nextStatus = currentStatus ? getNextStatus(currentStatus) : undefined;
-
-                           return (
-                              <TableRow
-                                 key={index}
-                                 sx={{
-                                    transition: 'all 0.3s ease',
-                                    '&:hover': {
-                                       background: 'rgba(255,255,255,0.02)',
-                                    },
-                                    '& td': {
-                                       borderBottom: '1px solid rgba(255,255,255,0.05)',
-                                       padding: '12px 16px',
-                                       color: 'rgba(255,255,255,0.7)',
-                                    }
-                                 }}
-                              >
-                                 <TableCell align="center">{index + 1}</TableCell>
-                                 <TableCell>{row.id}</TableCell>
-                                 <TableCell>{row.user_id}</TableCell>
-                                 <TableCell>
-                                    <Typography 
-                                       sx={{ 
-                                          color: '#00ff88',
-                                          fontWeight: 600,
-                                          fontSize: '0.95rem'
-                                       }}
-                                    >
-                                       {Number(row.total_money)?.toLocaleString()}đ
-                                    </Typography>
-                                 </TableCell>
-                                 <TableCell>
-                                    <Chip
-                                       label={ORDER_STATUS_LABELS[nextStatus as never]}
-                                       color={statusButtonColors[nextStatus as never] || 'primary'}
-                                       sx={{
-                                          borderRadius: '6px',
-                                          fontWeight: 500,
-                                          fontSize: '0.85rem'
-                                       }}
-                                    />
-                                 </TableCell>
-                                 <TableCell>
-                                    {dayjs(row.created_at).format('DD-MM-YYYY')}
-                                 </TableCell>
-                                 <TableCell>
-                                    <Link to={ROUTE_PATH.ADMIN_ORDER + '/' + row.id}>
-                                       <IconButton
-                                          sx={{
-                                             color: 'rgba(255,255,255,0.7)',
-                                             transition: 'all 0.3s ease',
-                                             '&:hover': {
-                                                color: '#00ff88',
-                                                background: 'rgba(0,255,136,0.1)',
-                                             }
+                        {sortedOrders.length > 0 ? (
+                           sortedOrders.map((row, index) => {
+                              const currentStatus = row.status as OrderStatusKey;
+                              const nextStatus = currentStatus ? getNextStatus(currentStatus) : undefined;
+                              
+                              return (
+                                 <TableRow
+                                    key={row.id}
+                                    sx={{
+                                       transition: 'all 0.3s ease',
+                                       '&:hover': {
+                                          background: 'rgba(255,255,255,0.02)',
+                                       },
+                                       '& td': {
+                                          borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                          padding: '12px 16px',
+                                          color: 'rgba(255,255,255,0.7)',
+                                       }
+                                    }}
+                                 >
+                                    <TableCell align="center">{index + 1}</TableCell>
+                                    <TableCell>{row.id}</TableCell>
+                                    <TableCell>{row.user_id}</TableCell>
+                                    <TableCell>
+                                       <Typography 
+                                          sx={{ 
+                                             color: '#00ff88',
+                                             fontWeight: 600,
+                                             fontSize: '0.95rem'
                                           }}
                                        >
-                                          <RemoveRedEyeIcon />
-                                       </IconButton>
-                                    </Link>
-                                 </TableCell>
-                              </TableRow>
-                           );
-                        })}
+                                          {Number(row.total_money)?.toLocaleString()}đ
+                                       </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                       <Chip
+                                          label={ORDER_STATUS_LABELS[nextStatus as never]}
+                                          color={statusButtonColors[nextStatus as never] || 'primary'}
+                                          sx={{
+                                             borderRadius: '6px',
+                                             fontWeight: 500,
+                                             fontSize: '0.85rem'
+                                          }}
+                                       />
+                                    </TableCell>
+                                    <TableCell>
+                                       {dayjs(row.created_at).format('DD-MM-YYYY')}
+                                    </TableCell>
+                                    <TableCell>
+                                       <Link to={ROUTE_PATH.ADMIN_ORDER + '/' + row.id}>
+                                          <IconButton
+                                             sx={{
+                                                color: 'rgba(255,255,255,0.7)',
+                                                transition: 'all 0.3s ease',
+                                                '&:hover': {
+                                                   color: '#00ff88',
+                                                   background: 'rgba(0,255,136,0.1)',
+                                                }
+                                             }}
+                                          >
+                                             <RemoveRedEyeIcon />
+                                          </IconButton>
+                                       </Link>
+                                    </TableCell>
+                                 </TableRow>
+                              );
+                           })
+                        ) : (
+                           <TableRow>
+                              <TableCell colSpan={7} align="center">
+                                 Không có dữ liệu
+                              </TableCell>
+                           </TableRow>
+                        )}
                      </TableBody>
                   </Table>
                </ScrollbarBase>

@@ -38,13 +38,49 @@ interface User {
    vip_end_date?: string; // Optional if VIP status might not be present
 }
 
-// Define an interface for the Order
+// Định nghĩa interface cho Room trong order
+interface OrderRoom {
+   id: number;               // ID của room_order_detail
+   room_id: number;          // ID của room
+   room_name: string;
+   start_time: string;
+   end_time: string;
+   total_time: number;
+   total_price: number;
+   status?: string;
+}
+
+// Định nghĩa interface cho Order
 interface OrderResponse {
-   order_id: string; // or number depending on your database type
-   order_date: string; // or Date if you want to use Date object
+   order_id: number;
+   order_date: string;
    order_status: string;
    total_amount: number;
    user: User;
+   rooms: OrderRoom[];      // Sử dụng OrderRoom[] thay vì Room[]
    products: Product[];
-   rooms: Room[];
+}
+
+// Định nghĩa interface cho request đổi phòng
+interface ChangeRoomRequest {
+   orderId: number;
+   orderDetailId: number;    // ID của room_order_detail
+   oldRoomId: number;       // ID của room cũ
+   newRoomId: number;       // ID của room mới
+   startTime: string;
+   endTime: string;
+}
+
+// Định nghĩa interface cho response của available rooms
+interface AvailableRoom {
+   id: number;              // ID của room_order_detail
+   room_id: number;         // ID của room
+   room_name: string;
+   price: number;
+   start_time: string | null;
+   end_time: string | null;
+   order_id?: number;
+   total_price?: number;
+   status: string;
+   originalStatus?: string;
 }

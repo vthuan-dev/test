@@ -9,7 +9,7 @@ router.put("/update/:id", orderController.update);
 router.delete("/remove/:id", orderController.deleteById);
 router.get("/searchById/:id", orderController.findById);
 router.get("", orderController.getAll);
-router.get("/detail/:id", orderController.detailOrder);
+router.get("/detail/:id", orderController.getOrderDetail);
 router.get("/statistic-product", orderController.statisticProductOrder);
 router.get("/statistic-room", orderController.statisticRoomOrder);
 router.post("/statistic-revenue", orderController.statisticTotalPrice);
@@ -20,5 +20,9 @@ router.get("/save-payment", paymentController.savePayment);
 router.get("/get-one-order-by-user-id/:id", orderController.getUserOrders);
 
 router.post("/get-order-room-timeline", getTimeLineOrderRoom);
+
+// router.get("/detail/:id", orderController.getDetailById);
+// router.get("/get-one-order-by-user-id/:id", orderController.getOrderByUserId);
+
 
 export default router;

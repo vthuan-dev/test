@@ -137,7 +137,7 @@ const OrderDetail = () => {
 
    const { mutate: mutateChangeRoom, isLoading: isChangingRoom } = useMutation({
       mutationFn: (data: any) => {
-         return postRequest('/api/order-room-detail/change-room', data);
+         return postRequest('/order-room-detail/change-room', data);
       },
       onSuccess: () => {
          toast.success('Đổi phòng thành công');
@@ -145,40 +145,67 @@ const OrderDetail = () => {
          queryClient.invalidateQueries(['order', id]);
       },
       onError: (error: any) => {
+         console.error('Change room error:', error);
          toast.error(error?.response?.data?.message || 'Đổi phòng thất bại');
       },
    });
 
-   const RoomChangeDialog = () => {
-      const handleChangeRoom = () => {
-         if (!selectedRoom || !newRoomId) {
-            toast.error('Vui lòng chọn phòng');
-            return;
-         }
+   const handleRoomChange = (room: OrderRoom) => {
+      console.log('Original room data:', room);
+      
+      // Đảm bảo có đủ thông tin cần thiết
+      const roomData = {
+         id: room.id,                // ID của room_order_detail
+         room_id: room.room_id,      // ID của room
+         room_name: room.room_name,
+         start_time: room.start_time,
+         end_time: room.end_time,
+         total_price: room.total_price,
+         total_time: room.total_time
+      };
+      
+      console.log('Room data before setting:', roomData);
+      setSelectedRoom(roomData);
+      setChangeRoomOpen(true);
+   };
 
-         const changeRoomData = {
-            orderId: order?.order_id,
-            orderDetailId: selectedRoom.id,
-            oldRoomId: selectedRoom.room_id,
-            newRoomId: Number(newRoomId),
-            startTime: selectedRoom.start_time,
-            endTime: selectedRoom.end_time
-         };
+   const handleChangeRoom = () => {
+      if (!selectedRoom || !newRoomId) {
+         toast.error('Vui lòng chọn phòng');
+         return;
+      }
 
-         console.log('Change Room Data:', changeRoomData);
+      // Log để kiểm tra dữ liệu
+      console.log('Selected room:', selectedRoom);
+      console.log('Order ID:', order?.order_id);
 
-         if (!changeRoomData.orderId || !changeRoomData.orderDetailId || 
-             !changeRoomData.oldRoomId || !changeRoomData.newRoomId || 
-             !changeRoomData.startTime || !changeRoomData.endTime) {
-            
-            console.error('Missing data:', changeRoomData);
-            toast.error('Thiếu thông tin cần thiết để đổi phòng');
-            return;
-         }
+      // Kiểm tra và chuyển đổi kiểu dữ liệu
+      const orderId = Number(order?.order_id);
+      const orderDetailId = Number(selectedRoom.id);
+      const oldRoomId = Number(selectedRoom.room_id);
+      const newRoomIdNum = Number(newRoomId);
 
-         mutateChangeRoom(changeRoomData);
+      // Kiểm tra tính hợp lệ của dữ liệu
+      if (isNaN(orderId) || isNaN(orderDetailId) || isNaN(oldRoomId) || isNaN(newRoomIdNum)) {
+         console.error('Invalid data:', { orderId, orderDetailId, oldRoomId, newRoomIdNum });
+         toast.error('Dữ liệu không hợp lệ');
+         return;
+      }
+
+      const changeRoomData: ChangeRoomRequest = {
+         orderId,
+         orderDetailId,
+         oldRoomId,
+         newRoomId: newRoomIdNum,
+         startTime: dayjs(selectedRoom.start_time).format(),
+         endTime: dayjs(selectedRoom.end_time).format()
       };
 
+      console.log('Final change room request:', changeRoomData);
+      mutateChangeRoom(changeRoomData);
+   };
+
+   const RoomChangeDialog = () => {
       return (
          <Dialog
             open={changeRoomOpen}
@@ -271,10 +298,10 @@ const OrderDetail = () => {
                <Grid container spacing={2}>
                   <Grid item xs={6}>
                      <Typography variant="body1">
-                        <strong>Mã đơn h��ng:</strong> {order?.order_id}
+                        <strong>Mã đơn hàng:</strong> {order?.order_id}
                      </Typography>
                      <Typography variant="body1">
-                        <strong>Ngày tạo:</strong> {dayjs(order?.order_date).format('DD-MM-YYYY HH:mm:ss')}
+                        <strong>Ngày từ:</strong> {dayjs(order?.order_date).format('DD-MM-YYYY HH:mm:ss')}
                      </Typography>
                      <Typography variant="body1">
                         <strong>Trạng thái hóa đơn:</strong> {order?.order_status}
@@ -329,7 +356,7 @@ const OrderDetail = () => {
                         </TableHead>
                         <TableBody>
                            {order.rooms.map((room) => (
-                              <TableRow key={room.id}>
+                              <TableRow key={room.order_detail_id || room.id}>
                                  <TableCell>{room.room_name}</TableCell>
                                  <TableCell align="center">
                                     {dayjs(room.start_time).format('DD-MM-YYYY HH:mm:ss')}
@@ -342,22 +369,15 @@ const OrderDetail = () => {
                                  <TableCell align="center">
                                     {currentStatus !== 'CHECKED_OUT' && currentStatus !== 'CANCELLED' && (
                                        <IconButton
-                                          onClick={() => {
-                                             console.log('Room data before setting:', room);
-                                             
-                                             const roomData = {
-                                                id: room.id,
-                                                room_id: room.room_id,
-                                                room_name: room.room_name,
-                                                start_time: room.start_time,
-                                                end_time: room.end_time,
-                                                total_price: room.total_price
-                                             };
-                                             
-                                             console.log('Room data after format:', roomData);
-                                             setSelectedRoom(roomData);
-                                             setChangeRoomOpen(true);
-                                          }}
+                                          onClick={() => handleRoomChange({
+                                             id: room.id,                // ID của room_order_detail 
+                                             room_id: room.room_id,      // ID của room
+                                             room_name: room.room_name,
+                                             start_time: room.start_time,
+                                             end_time: room.end_time,
+                                             total_price: room.total_price,
+                                             total_time: room.total_time
+                                          })}
                                           sx={{
                                              color: 'primary.main',
                                              '&:hover': {
