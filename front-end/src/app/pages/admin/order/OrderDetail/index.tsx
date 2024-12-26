@@ -14,15 +14,24 @@ import {
    TableContainer,
    TableHead,
    TableRow,
+   IconButton,
+   Dialog,
+   DialogTitle,
+   DialogContent,
+   DialogActions,
+   TextField,
+   MenuItem,
 } from '@mui/material';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import { useState } from 'react';
 
 import { ROUTE_PATH } from '@constants';
 import BaseBreadcrumbs from '@components/design-systems/BaseBreadcrumbs/BaseBreadcrumbs';
-import { getRequest, putRequest } from '~/app/configs';
+import { getRequest, putRequest, postRequest } from '~/app/configs';
 
 const breadcrumbs = [
    {
@@ -73,6 +82,7 @@ export const statusButtonColors = {
 
 const OrderDetail = () => {
    const { id } = useParams();
+   const queryClient = useQueryClient();
 
    const { data, refetch } = useQuery<{ data: OrderResponse }>({
       queryFn: () => getRequest(`/order/detail/${id}`),
@@ -115,6 +125,122 @@ const OrderDetail = () => {
       },
    });
 
+   const [changeRoomOpen, setChangeRoomOpen] = useState(false);
+   const [selectedRoom, setSelectedRoom] = useState<any>(null);
+   const [newRoomId, setNewRoomId] = useState<string>('');
+
+   const { data: availableRooms } = useQuery({
+      queryKey: ['available-rooms'],
+      queryFn: () => getRequest('/order-room-detail/available-rooms'),
+      enabled: changeRoomOpen,
+   });
+
+   const { mutate: mutateChangeRoom, isLoading: isChangingRoom } = useMutation({
+      mutationFn: (data: any) => {
+         return postRequest('/api/order-room-detail/change-room', data);
+      },
+      onSuccess: () => {
+         toast.success('Đổi phòng thành công');
+         setChangeRoomOpen(false);
+         queryClient.invalidateQueries(['order', id]);
+      },
+      onError: (error: any) => {
+         toast.error(error?.response?.data?.message || 'Đổi phòng thất bại');
+      },
+   });
+
+   const RoomChangeDialog = () => {
+      const handleChangeRoom = () => {
+         if (!selectedRoom || !newRoomId) {
+            toast.error('Vui lòng chọn phòng');
+            return;
+         }
+
+         const changeRoomData = {
+            orderId: order?.order_id,
+            orderDetailId: selectedRoom.id,
+            oldRoomId: selectedRoom.room_id,
+            newRoomId: Number(newRoomId),
+            startTime: selectedRoom.start_time,
+            endTime: selectedRoom.end_time
+         };
+
+         console.log('Change Room Data:', changeRoomData);
+
+         if (!changeRoomData.orderId || !changeRoomData.orderDetailId || 
+             !changeRoomData.oldRoomId || !changeRoomData.newRoomId || 
+             !changeRoomData.startTime || !changeRoomData.endTime) {
+            
+            console.error('Missing data:', changeRoomData);
+            toast.error('Thiếu thông tin cần thiết để đổi phòng');
+            return;
+         }
+
+         mutateChangeRoom(changeRoomData);
+      };
+
+      return (
+         <Dialog
+            open={changeRoomOpen}
+            onClose={() => {
+               setChangeRoomOpen(false);
+               setSelectedRoom(null);
+               setNewRoomId('');
+            }}
+            maxWidth="sm"
+            fullWidth
+         >
+            <DialogTitle>
+               {selectedRoom ? `Đổi phòng ${selectedRoom.room_name}` : 'Đổi phòng'}
+            </DialogTitle>
+            <DialogContent>
+               <Box sx={{ mt: 2 }}>
+                  {selectedRoom && (
+                     <>
+                        <Typography variant="body2" gutterBottom>
+                           Thời gian: {dayjs(selectedRoom.start_time).format('DD/MM/YYYY HH:mm')} - 
+                           {dayjs(selectedRoom.end_time).format('DD/MM/YYYY HH:mm')}
+                        </Typography>
+                        <Typography variant="body2" gutterBottom>
+                           Giá hiện tại: {Number(selectedRoom.total_price).toLocaleString()}đ
+                        </Typography>
+                     </>
+                  )}
+                  
+                  <TextField
+                     select
+                     fullWidth
+                     label="Chọn phòng mới"
+                     value={newRoomId}
+                     onChange={(e) => setNewRoomId(e.target.value)}
+                     sx={{ mt: 2 }}
+                  >
+                     {availableRooms?.data?.map((room: any) => (
+                        <MenuItem 
+                           key={room.id} 
+                           value={room.id}
+                           disabled={room.id === selectedRoom?.room_id}
+                        >
+                           {room.name} - {room.status} - {Number(room.price).toLocaleString()}đ/giờ
+                        </MenuItem>
+                     ))}
+                  </TextField>
+               </Box>
+            </DialogContent>
+            <DialogActions>
+               <Button onClick={() => setChangeRoomOpen(false)}>Hủy</Button>
+               <Button 
+                  variant="contained" 
+                  color="primary"
+                  disabled={!selectedRoom || !newRoomId || isChangingRoom}
+                  onClick={handleChangeRoom}
+               >
+                  {isChangingRoom ? 'Đang xử lý...' : 'Xác nhận đổi phòng'}
+               </Button>
+            </DialogActions>
+         </Dialog>
+      );
+   };
 
    return (
       <BaseBreadcrumbs arialabel="Chi tiết hóa đơn" breadcrumbs={breadcrumbs}>
@@ -145,7 +271,7 @@ const OrderDetail = () => {
                <Grid container spacing={2}>
                   <Grid item xs={6}>
                      <Typography variant="body1">
-                        <strong>Mã đơn hàng:</strong> {order?.order_id}
+                        <strong>Mã đơn h��ng:</strong> {order?.order_id}
                      </Typography>
                      <Typography variant="body1">
                         <strong>Ngày tạo:</strong> {dayjs(order?.order_date).format('DD-MM-YYYY HH:mm:ss')}
@@ -198,24 +324,53 @@ const OrderDetail = () => {
                               <TableCell align="center">
                                  <strong>Total Price</strong>
                               </TableCell>
+                              <TableCell align="center"><strong>Thao tác</strong></TableCell>
                            </TableRow>
                         </TableHead>
                         <TableBody>
-                           {order.rooms.map((room) => {
-                              return (
-                                 <TableRow>
-                                    <TableCell>{room.room_name}</TableCell>
-                                    <TableCell align="center">
-                                       {dayjs(room.start_time).format('DD-MM-YYYY HH:mm:ss')}
-                                    </TableCell>
-                                    <TableCell align="center">
-                                       {dayjs(room.end_time).format('DD-MM-YYYY HH:mm:ss')}
-                                    </TableCell>
-                                    <TableCell align="center">{room.total_time}</TableCell>
-                                    <TableCell align="center">{Number(room.total_price).toLocaleString()}đ</TableCell>
-                                 </TableRow>
-                              );
-                           })}
+                           {order.rooms.map((room) => (
+                              <TableRow key={room.id}>
+                                 <TableCell>{room.room_name}</TableCell>
+                                 <TableCell align="center">
+                                    {dayjs(room.start_time).format('DD-MM-YYYY HH:mm:ss')}
+                                 </TableCell>
+                                 <TableCell align="center">
+                                    {dayjs(room.end_time).format('DD-MM-YYYY HH:mm:ss')}
+                                 </TableCell>
+                                 <TableCell align="center">{room.total_time}</TableCell>
+                                 <TableCell align="center">{Number(room.total_price).toLocaleString()}đ</TableCell>
+                                 <TableCell align="center">
+                                    {currentStatus !== 'CHECKED_OUT' && currentStatus !== 'CANCELLED' && (
+                                       <IconButton
+                                          onClick={() => {
+                                             console.log('Room data before setting:', room);
+                                             
+                                             const roomData = {
+                                                id: room.id,
+                                                room_id: room.room_id,
+                                                room_name: room.room_name,
+                                                start_time: room.start_time,
+                                                end_time: room.end_time,
+                                                total_price: room.total_price
+                                             };
+                                             
+                                             console.log('Room data after format:', roomData);
+                                             setSelectedRoom(roomData);
+                                             setChangeRoomOpen(true);
+                                          }}
+                                          sx={{
+                                             color: 'primary.main',
+                                             '&:hover': {
+                                                backgroundColor: 'rgba(0, 127, 255, 0.08)'
+                                             }
+                                          }}
+                                       >
+                                          <SwapHorizIcon />
+                                       </IconButton>
+                                    )}
+                                 </TableCell>
+                              </TableRow>
+                           ))}
                         </TableBody>
                      </Table>
                   </TableContainer>
@@ -267,6 +422,8 @@ const OrderDetail = () => {
                </CardContent>
             </Card>
          )}
+
+         <RoomChangeDialog />
       </BaseBreadcrumbs>
    );
 };

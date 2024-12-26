@@ -16,6 +16,9 @@ import {
    Modal,
    Divider,
    Chip,
+   Dialog,
+   DialogTitle,
+   DialogContent,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
@@ -43,6 +46,8 @@ const UserDetail = () => {
    const { id } = useParams();
    const [openModal, setOpenModal] = useState(false);
    const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
+   const [changeRoomOpen, setChangeRoomOpen] = useState(false);
+   const [selectedRoom, setSelectedRoom] = useState<any>(null);
 
    const { data: user } = useQuery<ResponseGet<UserData>>({
       queryKey: ['admin-user-info'],
@@ -299,6 +304,20 @@ const UserDetail = () => {
                </Box>
             </Box>
          </Modal>
+
+         {/* Dialog đổi phòng */}
+         <Dialog 
+            open={changeRoomOpen}
+            onClose={() => {
+               setChangeRoomOpen(false);
+               setSelectedRoom(null);
+            }}
+         >
+            <DialogTitle>Đổi phòng</DialogTitle>
+            <DialogContent>
+               {/* Thêm form đổi phòng ở đây */}
+            </DialogContent>
+         </Dialog>
       </BaseBreadcrumbs>
    );
 };
