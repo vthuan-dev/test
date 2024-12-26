@@ -6,6 +6,7 @@ import { routes } from "./route";
 import { Server } from "socket.io";
 import http from "http";
 import { connection } from "./database";
+import orderRoomDetailRouter from "./route/order/order-room-detail";
 
 dotenv.config();
 const PORT = process.env.PORT;
@@ -40,6 +41,9 @@ routes.forEach((item) =>
     app.use("/api" + item.prefix + route.path, route.route)
   )
 );
+
+// Đăng ký route
+app.use('/api/order-room-detail', orderRoomDetailRouter);
 
 // Socket.IO events
 io.on("connection", (socket) => {
@@ -98,3 +102,5 @@ io.on("connection", (socket) => {
 server.listen(PORT || 3000, () => {
   console.log("Server running on port:", PORT);
 });
+
+export default app;

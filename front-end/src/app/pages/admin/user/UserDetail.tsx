@@ -20,6 +20,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { useState } from 'react';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 
 import { getNextStatus, ORDER_STATUS_LABELS, statusButtonColors, type OrderStatusKey } from '../order/OrderDetail';
 
@@ -261,9 +262,26 @@ const UserDetail = () => {
                                           Thời gian kết thúc:{' '}
                                           <strong>{new Date(roomDetail.end_time).toLocaleString()}</strong>
                                        </Typography>
-                                       <Typography variant="body2">
-                                          Tổng giá: <strong>{roomDetail.total_price.toLocaleString()} VND</strong>
-                                       </Typography>
+                                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+                                          <Typography variant="body2">
+                                             Tổng giá: <strong>{roomDetail.total_price.toLocaleString()} VND</strong>
+                                          </Typography>
+                                          {selectedOrder?.order_status !== 'CHECKED_OUT' && 
+                                           selectedOrder?.order_status !== 'CANCELLED' && (
+                                            <Button
+                                              startIcon={<SwapHorizIcon />}
+                                              variant="outlined"
+                                              size="small"
+                                              color="primary"
+                                              onClick={() => {
+                                                setSelectedRoom(roomDetail);
+                                                setChangeRoomOpen(true);
+                                              }}
+                                            >
+                                              Đổi phòng
+                                            </Button>
+                                          )}
+                                       </Box>
                                     </Box>
                                  </Card>
                               </Grid>
