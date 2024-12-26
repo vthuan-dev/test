@@ -33,9 +33,9 @@ const breadcrumbs = [
 const Order = () => {
    const { setParams, searchParams } = useSearchParamsHook();
 
-   // Sửa lại query key và thêm enabled để tránh lỗi undefined
+   // Cập nhật hàm query để xử lý đúng định dạng response
    const { data: orders, isLoading } = useQuery<ResponseGetList<OrderItem>>({
-      queryKey: ['orders', searchParams.page], // Sửa query key
+      queryKey: ['orders', searchParams.page],
       queryFn: async () => {
          const queryParam = new URLSearchParams({
             page: String(searchParams.page ?? 1),
@@ -43,9 +43,15 @@ const Order = () => {
             isPagination: String(true),
          });
          const response = await getRequest(`/order?${queryParam}`);
-         return response;
+         // Đảm bảo trả về đúng cấu trúc dữ liệu
+         return {
+            data: response.data,
+            pagination: response.pagination,
+            message: response.message,
+            success: response.success
+         };
       },
-      enabled: true, // Thêm enabled
+      enabled: true,
    });
 
    // Thêm xử lý loading state
@@ -53,17 +59,34 @@ const Order = () => {
       return <Box>Loading...</Box>;
    }
 
-   // Sửa lại cách sort và kiểm tra null
+   // Cập nhật logic sắp xếp để xử lý định dạng API response
    const sortedOrders = React.useMemo(() => {
       if (!orders?.data) return [];
-      return [...orders.data].sort((a, b) => 
-         dayjs(b.created_at).valueOf() - dayjs(a.created_at).valueOf()
-      );
+      return [...orders.data].sort((a, b) => {
+         const dateA = dayjs(b.created_at || b.order_date);
+         const dateB = dayjs(a.created_at || a.order_date);
+         return dateA.valueOf() - dateB.valueOf();
+      });
    }, [orders?.data]);
 
    // Default values for pagination
    const currentPage = searchParams.page ?? 1;
    const totalPage = orders?.pagination?.totalPage ?? 1;
+
+   // Cập nhật cell hiển thị trạng thái
+   const renderStatus = (status: OrderStatusKey) => {
+      return (
+         <Chip
+            label={ORDER_STATUS_LABELS[status] || 'Không xác định'}
+            color={statusButtonColors[status] || 'default'}
+            sx={{
+               borderRadius: '6px',
+               fontWeight: 500,
+               fontSize: '0.85rem'
+            }}
+         />
+      );
+   };
 
    return (
       <BaseBreadcrumbs arialabel="Hóa đơn" breadcrumbs={breadcrumbs}>
@@ -203,18 +226,10 @@ const Order = () => {
                                        </Typography>
                                     </TableCell>
                                     <TableCell>
-                                       <Chip
-                                          label={ORDER_STATUS_LABELS[nextStatus as never]}
-                                          color={statusButtonColors[nextStatus as never] || 'primary'}
-                                          sx={{
-                                             borderRadius: '6px',
-                                             fontWeight: 500,
-                                             fontSize: '0.85rem'
-                                          }}
-                                       />
+                                       {renderStatus(row.status as OrderStatusKey)}
                                     </TableCell>
                                     <TableCell>
-                                       {dayjs(row.created_at).format('DD-MM-YYYY')}
+                                       {dayjs(row.created_at || row.order_date).format('DD-MM-YYYY')}
                                     </TableCell>
                                     <TableCell>
                                        <Link to={ROUTE_PATH.ADMIN_ORDER + '/' + row.id}>
