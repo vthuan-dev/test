@@ -431,6 +431,10 @@ const OrderDetail = () => {
       </Dialog>
    );
 
+   // Kiểm tra có dữ liệu không
+   const hasRooms = order?.rooms && order.rooms.length > 0;
+   const hasProducts = order?.products && order.products.length > 0;
+
    return (
       <BaseBreadcrumbs arialabel="Chi tiết hóa đơn" breadcrumbs={breadcrumbs}>
          {/* Actions Section */}
@@ -596,110 +600,104 @@ const OrderDetail = () => {
             </CardContent>
          </Card>
 
-         {/* Room Booking Table */}
-         {order?.rooms && (
-            <Card variant="outlined" sx={{ mb: 3 }}>
-               <CardHeader title="Chi tiết đặt phòng" />
-               <CardContent>
-                  <TableContainer>
-                     <Table aria-label="room booking table">
-                        <TableHead>
-                           <TableRow>
-                              <TableCell>
-                                 <strong>Tên phòng</strong>
+         {/* Hiển thị phần có dữ liệu trước */}
+         {hasRooms && (
+            <>
+               <Typography variant="h5" sx={{ mb: 2 }}>Chi tiết đặt phòng</Typography>
+               <TableContainer>
+                  <Table>
+                     <TableHead>
+                        <TableRow>
+                           <TableCell>Tên phòng</TableCell>
+                           <TableCell>Thời gian vào</TableCell>
+                           <TableCell>Thời gian ra</TableCell>
+                           <TableCell>Số giờ</TableCell>
+                           <TableCell>Total Price</TableCell>
+                           <TableCell>Thao tác</TableCell>
+                        </TableRow>
+                     </TableHead>
+                     <TableBody>
+                        {order.rooms.map((room) => (
+                           <TableRow key={room.id}>
+                              <TableCell>{room.room_name}</TableCell>
+                              <TableCell align="center">
+                                 {dayjs(room.start_time).format('DD-MM-YYYY HH:mm:ss')}
                               </TableCell>
                               <TableCell align="center">
-                                 <strong>Thời gian vào</strong>
+                                 {dayjs(room.end_time).format('DD-MM-YYYY HH:mm:ss')}
                               </TableCell>
+                              <TableCell align="center">{room.total_time}</TableCell>
+                              <TableCell align="center">{formatPrice(room.total_price)} đ</TableCell>
                               <TableCell align="center">
-                                 <strong>Thời gian ra</strong>
+                                 {currentStatus !== 'CHECKED_OUT' && currentStatus !== 'CANCELLED' && (
+                                    <IconButton
+                                       onClick={() => handleRoomChange(room)}
+                                       sx={{
+                                          color: 'primary.main',
+                                          '&:hover': {
+                                             backgroundColor: 'rgba(0, 127, 255, 0.08)'
+                                          }
+                                       }}
+                                    >
+                                       <SwapHorizIcon />
+                                    </IconButton>
+                                 )}
                               </TableCell>
-                              <TableCell align="center">
-                                 <strong>Số giờ</strong>
-                              </TableCell>
-                              <TableCell align="center">
-                                 <strong>Total Price</strong>
-                              </TableCell>
-                              <TableCell align="center"><strong>Thao tác</strong></TableCell>
                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                           {order.rooms.map((room) => (
-                              <TableRow key={room.order_detail_id || room.id}>
-                                 <TableCell>{room.room_name}</TableCell>
-                                 <TableCell align="center">
-                                    {dayjs(room.start_time).format('DD-MM-YYYY HH:mm:ss')}
-                                 </TableCell>
-                                 <TableCell align="center">
-                                    {dayjs(room.end_time).format('DD-MM-YYYY HH:mm:ss')}
-                                 </TableCell>
-                                 <TableCell align="center">{room.total_time}</TableCell>
-                                 <TableCell align="center">{formatPrice(room.total_price)} đ</TableCell>
-                                 <TableCell align="center">
-                                    {currentStatus !== 'CHECKED_OUT' && currentStatus !== 'CANCELLED' && (
-                                       <IconButton
-                                          onClick={() => handleRoomChange(room)}
-                                          sx={{
-                                             color: 'primary.main',
-                                             '&:hover': {
-                                                backgroundColor: 'rgba(0, 127, 255, 0.08)'
-                                             }
-                                          }}
-                                       >
-                                          <SwapHorizIcon />
-                                       </IconButton>
-                                    )}
-                                 </TableCell>
-                              </TableRow>
-                           ))}
-                        </TableBody>
-                     </Table>
-                  </TableContainer>
-               </CardContent>
-            </Card>
+                        ))}
+                     </TableBody>
+                  </Table>
+               </TableContainer>
+            </>
          )}
 
-         {/* Product Details Table */}
-         {order?.products && (
-            <Card variant="outlined" sx={{ mb: 1 }}>
-               <CardHeader title="Chi tiết sản phẩm" />
-               <CardContent>
-                  <TableContainer>
-                     <Table aria-label="product table">
-                        <TableHead>
-                           <TableRow>
-                              <TableCell>
-                                 <strong>Tên sản phẩm</strong>
-                              </TableCell>
-                              <TableCell align="center">
-                                 <strong>Danh mục</strong>
-                              </TableCell>
-                              <TableCell align="center">
-                                 <strong>Số lượng</strong>
-                              </TableCell>
-                              <TableCell align="center">
-                                 <strong>Giá</strong>
-                              </TableCell>
-                              <TableCell align="center">
-                                 <strong>Tổng tiền</strong>
-                              </TableCell>
+         {hasProducts && (
+            <>
+               <Typography variant="h5" sx={{ mt: hasRooms ? 4 : 0, mb: 2 }}>Chi tiết sản phẩm</Typography>
+               <TableContainer>
+                  <Table>
+                     <TableHead>
+                        <TableRow>
+                           <TableCell>Tên sản phẩm</TableCell>
+                           <TableCell>Danh mục</TableCell>
+                           <TableCell>Số lượng</TableCell>
+                           <TableCell>Giá</TableCell>
+                           <TableCell>Tổng tiền</TableCell>
+                        </TableRow>
+                     </TableHead>
+                     <TableBody>
+                        {order.products.map((product) => (
+                           <TableRow key={product.id}>
+                              <TableCell>{product.product_name}</TableCell>
+                              <TableCell>{product.category}</TableCell>
+                              <TableCell>{product.quantity}</TableCell>
+                              <TableCell>{formatPrice(product.price)} đ</TableCell>
+                              <TableCell>{formatPrice(product.total_price)} đ</TableCell>
                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                           {order?.products?.map((product) => (
-                              <TableRow key={product.id}>
-                                 <TableCell>{product.product_name}</TableCell>
-                                 <TableCell>{product.category}</TableCell>
-                                 <TableCell>{product.quantity}</TableCell>
-                                 <TableCell>{formatPrice(product.price)} đ</TableCell>
-                                 <TableCell>{formatPrice(product.total_price)} đ</TableCell>
-                              </TableRow>
-                           ))}
-                        </TableBody>
-                     </Table>
-                  </TableContainer>
-               </CardContent>
-            </Card>
+                        ))}
+                     </TableBody>
+                  </Table>
+               </TableContainer>
+            </>
+         )}
+
+         {/* Hiển thị phần không có dữ liệu sau */}
+         {!hasRooms && (
+            <>
+               <Typography variant="h5" sx={{ mt: hasProducts ? 4 : 0, mb: 2 }}>Chi tiết đặt phòng</Typography>
+               <Typography variant="body1" color="text.secondary" sx={{ fontStyle: 'italic', mb: 3 }}>
+                  Chưa đặt phòng
+               </Typography>
+            </>
+         )}
+
+         {!hasProducts && (
+            <>
+               <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>Chi tiết sản phẩm</Typography>
+               <Typography variant="body1" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                  Chưa đặt sản phẩm
+               </Typography>
+            </>
          )}
 
          <RoomChangeDialog />
