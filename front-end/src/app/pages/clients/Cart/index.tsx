@@ -1,7 +1,20 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/naming-convention */
 import React, { useEffect, useMemo, useState } from 'react';
-import { Divider, Grid, Typography, Button, Box, Container, Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
+import { 
+   Divider, 
+   Grid, 
+   Typography, 
+   Button, 
+   Box, 
+   Container,
+   Dialog,
+   DialogContent,
+   IconButton,
+   Paper,
+   Fade,
+   useTheme
+} from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -9,6 +22,8 @@ import dayjs from 'dayjs';
 import DiscountIcon from '@mui/icons-material/Discount';
 import TimerIcon from '@mui/icons-material/Timer';
 import StarIcon from '@mui/icons-material/Star';
+import CloseIcon from '@mui/icons-material/Close';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
 
 import { getCart } from './service';
 import CartItem from './components/CartItem';
@@ -22,52 +37,158 @@ import { getAllTimeline } from '@pages/admin/rom/service';
 
 const DiscountModal = ({ open, onClose }) => {
    return (
-      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-         <DialogTitle sx={{ bgcolor: 'primary.main', color: 'white' }}>
-            Chính Sách Giảm Giá
-         </DialogTitle>
-         <DialogContent>
-            <List>
-               <ListItem>
-                  <ListItemIcon>
-                     <TimerIcon color="primary" />
-                  </ListItemIcon>
-                  <ListItemText 
-                     primary="Giảm giá theo thời gian thuê"
-                     secondary={
-                        <React.Fragment>
-                           <Typography component="span" display="block">• Thuê ≥ 30 ngày: Giảm 30%</Typography>
-                           <Typography component="span" display="block">• Thuê ≥ 7 ngày: Giảm 25%</Typography>
-                           <Typography component="span" display="block">• Thuê ≥ 3 ngày: Giảm 20%</Typography>
-                        </React.Fragment>
+      <Dialog 
+         open={open} 
+         onClose={onClose}
+         maxWidth="sm"
+         fullWidth
+         PaperProps={{
+            style: {
+               borderRadius: '20px',
+               backgroundColor: 'transparent'
+            }
+         }}
+      >
+         <Paper 
+            sx={{
+               background: '#1976d2',
+               color: 'white',
+               p: 3,
+               borderRadius: '20px',
+               position: 'relative'
+            }}
+         >
+            {/* Close button */}
+            <IconButton
+               onClick={onClose}
+               sx={{
+                  position: 'absolute',
+                  right: 8,
+                  top: 8,
+                  color: 'white',
+                  '&:hover': {
+                     backgroundColor: 'rgba(255,255,255,0.1)'
+                  }
+               }}
+            >
+               <CloseIcon />
+            </IconButton>
+
+            {/* Header */}
+            <Box sx={{ textAlign: 'center', mb: 3 }}>
+               <Box 
+                  sx={{
+                     display: 'inline-flex',
+                     p: 2,
+                     borderRadius: '50%',
+                     backgroundColor: 'rgba(255,255,255,0.1)',
+                     mb: 2
+                  }}
+               >
+                  <LocalOfferIcon sx={{ fontSize: 40 }} />
+               </Box>
+               <Typography variant="h5" fontWeight="bold" gutterBottom>
+                  Ưu Đãi Đặc Biệt
+               </Typography>
+               <Typography variant="subtitle1">
+                  Tiết kiệm hơn khi đặt phòng dài hạn
+               </Typography>
+            </Box>
+
+            {/* Discount Content */}
+            <Box sx={{ mb: 3 }}>
+               {/* Giảm giá theo thời gian */}
+               <Paper 
+                  sx={{ 
+                     p: 2, 
+                     mb: 2, 
+                     bgcolor: 'rgba(255,255,255,0.1)',
+                     borderRadius: '15px'
+                  }}
+               >
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                     <TimerIcon sx={{ mr: 1 }} />
+                     <Typography variant="h6">Giảm Giá Theo Thời Gian</Typography>
+                  </Box>
+                  <Box sx={{ pl: 4 }}>
+                     <Typography sx={{ mb: 1 }}>
+                        • Thuê ≥ 30 ngày: <Box component="span" sx={{ color: '#4caf50', fontWeight: 'bold' }}>Giảm 30%</Box>
+                     </Typography>
+                     <Typography sx={{ mb: 1 }}>
+                        • Thuê ≥ 7 ngày: <Box component="span" sx={{ color: '#4caf50', fontWeight: 'bold' }}>Giảm 25%</Box>
+                     </Typography>
+                     <Typography>
+                        • Thuê ≥ 3 ngày: <Box component="span" sx={{ color: '#4caf50', fontWeight: 'bold' }}>Giảm 20%</Box>
+                     </Typography>
+                  </Box>
+               </Paper>
+
+               {/* Giảm giá theo ngày và VIP */}
+               <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                     <Paper 
+                        sx={{ 
+                           p: 2, 
+                           height: '100%',
+                           bgcolor: 'rgba(255,255,255,0.1)',
+                           borderRadius: '15px'
+                        }}
+                     >
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                           <DiscountIcon sx={{ mr: 1 }} />
+                           <Typography variant="h6">Giảm Giá Theo Ngày</Typography>
+                        </Box>
+                        <Typography>
+                           Tính 20 giờ thay vì 24 giờ mỗi ngày
+                           <Box component="span" sx={{ color: '#4caf50', fontWeight: 'bold', display: 'block', mt: 1 }}>
+                              (Giảm 17%)
+                           </Box>
+                        </Typography>
+                     </Paper>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                     <Paper 
+                        sx={{ 
+                           p: 2, 
+                           height: '100%',
+                           bgcolor: 'rgba(255,255,255,0.1)',
+                           borderRadius: '15px'
+                        }}
+                     >
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                           <StarIcon sx={{ mr: 1 }} />
+                           <Typography variant="h6">Thành Viên VIP</Typography>
+                        </Box>
+                        <Typography>
+                           Giảm thêm trên tổng hóa đơn
+                           <Box component="span" sx={{ color: '#4caf50', fontWeight: 'bold', display: 'block', mt: 1 }}>
+                              10% OFF
+                           </Box>
+                        </Typography>
+                     </Paper>
+                  </Grid>
+               </Grid>
+            </Box>
+
+            {/* Button */}
+            <Box sx={{ textAlign: 'center' }}>
+               <Button 
+                  variant="contained" 
+                  onClick={onClose}
+                  sx={{
+                     bgcolor: 'white',
+                     color: '#1976d2',
+                     borderRadius: '10px',
+                     px: 4,
+                     '&:hover': {
+                        bgcolor: 'rgba(255,255,255,0.9)'
                      }
-                  />
-               </ListItem>
-               <ListItem>
-                  <ListItemIcon>
-                     <DiscountIcon color="primary" />
-                  </ListItemIcon>
-                  <ListItemText 
-                     primary="Giảm giá theo ngày"
-                     secondary="Tính 20 giờ thay vì 24 giờ mỗi ngày (Giảm 17%)"
-                  />
-               </ListItem>
-               <ListItem>
-                  <ListItemIcon>
-                     <StarIcon color="primary" />
-                  </ListItemIcon>
-                  <ListItemText 
-                     primary="Thành viên VIP"
-                     secondary="Giảm thêm 10% trên tổng hóa đơn"
-                  />
-               </ListItem>
-            </List>
-         </DialogContent>
-         <DialogActions>
-            <Button onClick={onClose} variant="contained">
-               Đã hiểu
-            </Button>
-         </DialogActions>
+                  }}
+               >
+                  Đã Hiểu
+               </Button>
+            </Box>
+         </Paper>
       </Dialog>
    );
 };
@@ -182,11 +303,13 @@ const Cart: React.FC = () => {
                   Giỏ Hàng Đặt Phòng & Sản Phẩm
                </Typography>
                <Button 
-                  startIcon={<DiscountIcon />}
+                  startIcon={<LocalOfferIcon />}
                   onClick={() => setShowDiscount(true)}
+                  variant="outlined"
+                  color="primary"
                   sx={{ mb: 2 }}
                >
-                  Xem chính sách giảm giá
+                  Xem ưu đãi giảm giá
                </Button>
                <Divider sx={{ marginBottom: 3 }} />
 
