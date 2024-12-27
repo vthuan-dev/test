@@ -110,6 +110,13 @@ const OrderDetail = () => {
    });
    const order = data?.data;
 
+   // Format lại response để hiển thị giá tiền
+   const formatPrice = (price: number | string | undefined) => {
+      if (!price || price === 0) return '0';
+      const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+      return numPrice.toLocaleString('vi-VN');
+   };
+
    const currentStatus = order?.order_status as OrderStatusKey | undefined;
    const nextStatus = currentStatus ? getNextStatus(currentStatus) : undefined;
 
@@ -524,7 +531,7 @@ const OrderDetail = () => {
                            <Typography variant="body1" color="text.secondary">
                               Tổng tiền:
                               <Typography component="span" sx={{ ml: 1, fontWeight: 600, color: 'error.main' }}>
-                                 {Number(order?.total_amount).toLocaleString()} đ
+                                 {formatPrice(order?.total_amount)} đ
                               </Typography>
                            </Typography>
                         </Box>
@@ -627,7 +634,7 @@ const OrderDetail = () => {
                                     {dayjs(room.end_time).format('DD-MM-YYYY HH:mm:ss')}
                                  </TableCell>
                                  <TableCell align="center">{room.total_time}</TableCell>
-                                 <TableCell align="center">{Number(room.total_price).toLocaleString()}đ</TableCell>
+                                 <TableCell align="center">{formatPrice(room.total_price)} đ</TableCell>
                                  <TableCell align="center">
                                     {currentStatus !== 'CHECKED_OUT' && currentStatus !== 'CANCELLED' && (
                                        <IconButton
@@ -662,7 +669,7 @@ const OrderDetail = () => {
                         <TableHead>
                            <TableRow>
                               <TableCell>
-                                 <strong>Tên s���n phẩm</strong>
+                                 <strong>Tên sản phẩm</strong>
                               </TableCell>
                               <TableCell align="center">
                                  <strong>Danh mục</strong>
@@ -679,15 +686,13 @@ const OrderDetail = () => {
                            </TableRow>
                         </TableHead>
                         <TableBody>
-                           {order.products.map((product) => (
+                           {order?.products?.map((product) => (
                               <TableRow key={product.id}>
                                  <TableCell>{product.product_name}</TableCell>
-                                 <TableCell align="center">{product.category}</TableCell>
-                                 <TableCell align="center">{product.quantity}</TableCell>
-                                 <TableCell align="center">{Number(product.unit_price).toLocaleString()}đ</TableCell>
-                                 <TableCell align="center">
-                                    {(product.quantity * product.unit_price).toLocaleString()}đ
-                                 </TableCell>
+                                 <TableCell>{product.category}</TableCell>
+                                 <TableCell>{product.quantity}</TableCell>
+                                 <TableCell>{formatPrice(product.price)} đ</TableCell>
+                                 <TableCell>{formatPrice(product.total_price)} đ</TableCell>
                               </TableRow>
                            ))}
                         </TableBody>

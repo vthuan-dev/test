@@ -656,25 +656,48 @@ export const getOrderDetail = async (req, res) => {
     const { id } = req.params;
     const connection = await orderModel.connection.promise();
 
+    // Query lấy thông tin đơn hàng và user
     const [orders] = await connection.query(`
       SELECT o.*, 
         u.username, 
         u.email,
-        u.phone,      -- Thêm trường phone
+        u.phone,
         u.is_vip, 
-        u.vip_end_date,
-        rod.id as order_detail_id,
+        u.vip_end_date
+      FROM orders o
+      LEFT JOIN user u ON o.user_id = u.id 
+      WHERE o.id = ?
+    `, [id]);
+
+    // Query lấy thông tin sản phẩm
+    const [products] = await connection.query(`
+      SELECT 
+        od.id,
+        od.quantity,
+        od.price as unit_price,
+        p.product_name,
+        p.image_url,
+        c.category_name as category,
+        (od.quantity * od.price) as total_price
+      FROM order_detail od
+      JOIN product p ON od.product_id = p.id
+      LEFT JOIN category c ON p.category_id = c.id
+      WHERE od.order_id = ?
+    `, [id]);
+
+    // Query lấy thông tin phòng
+    const [rooms] = await connection.query(`
+      SELECT 
+        rod.id,
         rod.room_id,
         r.room_name,
         rod.start_time,
         rod.end_time,
         rod.total_time,
         rod.total_price
-      FROM orders o
-      LEFT JOIN user u ON o.user_id = u.id 
-      LEFT JOIN room_order_detail rod ON o.id = rod.order_id
-      LEFT JOIN room r ON rod.room_id = r.id
-      WHERE o.id = ?
+      FROM room_order_detail rod
+      JOIN room r ON rod.room_id = r.id
+      WHERE rod.order_id = ?
     `, [id]);
 
     if (!orders.length) {
@@ -686,25 +709,34 @@ export const getOrderDetail = async (req, res) => {
       order_date: orders[0].order_date,
       order_status: orders[0].status,
       total_amount: orders[0].total_money,
+      payment_method: orders[0].payment_method,
+      payment_status: orders[0].payment_status,
+      description: orders[0].description,
       user: {
         username: orders[0].username,
         email: orders[0].email,
-        phone: orders[0].phone,    // Thêm phone vào response
+        phone: orders[0].phone,
         is_vip: orders[0].is_vip,
         vip_end_date: orders[0].vip_end_date
       },
-      rooms: orders
-        .filter(order => order.room_id)
-        .map(order => ({
-          id: order.order_detail_id,
-          room_id: order.room_id,
-          room_name: order.room_name,
-          start_time: order.start_time,
-          end_time: order.end_time,
-          total_time: order.total_time,
-          total_price: order.total_price
-        })),
-      products: []  // Giữ mảng products rỗng vì không có sản ph��m
+      rooms: rooms.map(room => ({
+        id: room.id,
+        room_id: room.room_id,
+        room_name: room.room_name,
+        start_time: room.start_time,
+        end_time: room.end_time,
+        total_time: room.total_time,
+        total_price: room.total_price
+      })),
+      products: products.map(product => ({
+        id: product.id,
+        product_name: product.product_name,
+        image_url: product.image_url,
+        category: product.category,
+        quantity: Number(product.quantity),
+        price: Number(product.unit_price),
+        total_price: Number(product.total_price)
+      }))
     };
 
     return responseSuccess(res, {
