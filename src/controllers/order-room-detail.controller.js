@@ -139,9 +139,10 @@ export const getTimeLineOrderRoom = async (req, res) => {
 };
 
 export const changeRoom = async (req, res) => {
-  const connection = await orderRoomModel.connection.promise();
-  
+  let connection;
   try {
+    connection = await orderRoomModel.connection.promise();
+    
     const { orderId, orderDetailId, oldRoomId, newRoomId, startTime, endTime } = req.body;
 
     // Validate input
@@ -285,7 +286,9 @@ export const changeRoom = async (req, res) => {
     });
 
   } catch (error) {
-    await connection.rollback();
+    if (connection) {
+      await connection.rollback();
+    }
     console.error("Error in changeRoom:", error);
     return responseError(res, error);
   }
