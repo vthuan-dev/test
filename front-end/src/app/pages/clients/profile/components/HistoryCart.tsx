@@ -4,10 +4,8 @@ import {
    Button,
    Card,
    Chip,
-   Divider,
    Grid,
    Modal,
-   Stack,
    Table,
    TableBody,
    TableCell,
@@ -17,6 +15,8 @@ import {
    Typography,
    Paper,
    IconButton,
+   Tabs,
+   Tab,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -25,6 +25,8 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import PaymentIcon from '@mui/icons-material/Payment';
 import CloseIcon from '@mui/icons-material/Close';
 import ReceiptIcon from '@mui/icons-material/Receipt';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 
 import {
    getNextStatus,
@@ -34,11 +36,33 @@ import {
 } from '@pages/admin/order/OrderDetail';
 import { getRequest } from '~/app/configs';
 import useAuth from '~/app/redux/slices/auth.slice';
+import { type ResponseGet } from '~/app/types/response';
+
+interface OrderData {
+   id: number;
+   order_date: string;
+   total_money: number;
+   order_status: string;
+   payment_status: number;
+   order_details?: Array<{
+      id: number;
+      product_name: string;
+      quantity: number;
+      price: number;
+   }>;
+   room_order_details?: Array<{
+      id: number;
+      room_name: string;
+      start_time: string;
+      end_time: string;
+   }>;
+}
 
 const HistoryCart = () => {
    const { user } = useAuth();
    const [openModal, setOpenModal] = useState(false);
    const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
+   const [currentTab, setCurrentTab] = useState('all');
 
    const { data: orders } = useQuery<ResponseGet<OrderData[]>>({
       queryKey: ['admin-order-user-id'],
@@ -55,13 +79,98 @@ const HistoryCart = () => {
       setSelectedOrder(null);
    };
 
+   const filteredOrders = orders?.data?.filter(order => {
+      const hasProducts = order.order_details && order.order_details.length > 0;
+      const hasRooms = order.room_order_details && order.room_order_details.length > 0;
+
+      switch (currentTab) {
+         case 'products':
+            return hasProducts && !hasRooms;
+         case 'rooms':
+            return hasRooms && !hasProducts;
+         case 'mixed':
+            return hasProducts && hasRooms;
+         case 'all':
+         default:
+            return true;
+      }
+   });
+
    return (
-      <Box sx={{ p: 3 }}>
-         <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold', color: 'primary.main' }}>
+      <Box sx={{ 
+         width: '100%',
+         p: 3,
+         '& .MuiGrid-root': {
+            width: '100%',
+            margin: 0
+         }
+      }}>
+         <Typography variant="h4" sx={{ 
+            mb: 4, 
+            fontWeight: 'bold', 
+            color: 'primary.main' 
+         }}>
             Lịch sử đặt hàng
          </Typography>
 
-         <TableContainer component={Paper} elevation={3}>
+         {/* Tabs Filter */}
+         <Box sx={{ 
+            borderBottom: 1, 
+            borderColor: 'divider', 
+            mb: 3,
+            width: '100%'
+         }}>
+            <Tabs 
+               value={currentTab} 
+               onChange={(e, newValue) => setCurrentTab(newValue)}
+               sx={{ 
+                  mb: 2,
+                  '& .MuiTabs-flexContainer': {
+                     gap: 2
+                  }
+               }}
+            >
+               <Tab
+                  icon={<ReceiptIcon />}
+                  iconPosition="start"
+                  label="Tất cả đơn hàng"
+                  value="all"
+               />
+               <Tab
+                  icon={<ShoppingCartIcon />}
+                  iconPosition="start"
+                  label="Đơn hàng sản phẩm"
+                  value="products"
+               />
+               <Tab
+                  icon={<MeetingRoomIcon />}
+                  iconPosition="start"
+                  label="Đơn đặt phòng"
+                  value="rooms"
+               />
+               <Tab
+                  icon={<ReceiptIcon />}
+                  iconPosition="start"
+                  label="Đơn tổng hợp"
+                  value="mixed"
+               />
+            </Tabs>
+         </Box>
+
+         {/* Orders Table */}
+         <TableContainer component={Paper} 
+            sx={{
+               width: '100%',
+               overflowX: 'auto',
+               '& .MuiTable-root': {
+                  minWidth: '100%',
+               },
+               '& .MuiTableCell-root': {
+                  whiteSpace: 'nowrap',
+                  px: 2
+               }
+            }}
+         >
             <Table>
                <TableHead>
                   <TableRow sx={{ bgcolor: 'primary.main' }}>
@@ -69,20 +178,22 @@ const HistoryCart = () => {
                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Ngày đặt</TableCell>
                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Tổng tiền</TableCell>
                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Trạng thái</TableCell>
+                     <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Loại đơn</TableCell>
                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Chi tiết</TableCell>
                   </TableRow>
                </TableHead>
                <TableBody>
-                  {orders?.data?.map((order) => (
-                     <TableRow 
-                        key={order.id} 
-                        hover
-                        sx={{ '&:hover': { bgcolor: 'action.hover' } }}
-                     >
+                  {filteredOrders?.map((order) => (
+                     <TableRow key={order.id} hover>
                         <TableCell>#{order.id}</TableCell>
-                        <TableCell>{new Date(order.order_date).toLocaleDateString('vi-VN')}</TableCell>
+                        <TableCell>
+                           {new Date(order.order_date).toLocaleDateString('vi-VN')}
+                        </TableCell>
                         <TableCell sx={{ fontWeight: 'medium', color: 'success.main' }}>
-                           {order.total_money.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
+                           {order.total_money.toLocaleString('vi-VN', { 
+                              style: 'currency', 
+                              currency: 'VND' 
+                           })}
                         </TableCell>
                         <TableCell>
                            <Chip
@@ -91,6 +202,30 @@ const HistoryCart = () => {
                               variant="outlined"
                               size="small"
                            />
+                        </TableCell>
+                        <TableCell>
+                           <Box sx={{ 
+                              display: 'flex', 
+                              flexDirection: 'column',
+                              gap: 1 
+                           }}>
+                              {order.order_details?.length > 0 && (
+                                 <Chip
+                                    icon={<ShoppingCartIcon />}
+                                    label="Sản phẩm"
+                                    size="small"
+                                    color="info"
+                                 />
+                              )}
+                              {order.room_order_details?.length > 0 && (
+                                 <Chip
+                                    icon={<MeetingRoomIcon />}
+                                    label="Phòng"
+                                    size="small"
+                                    color="secondary"
+                                 />
+                              )}
+                           </Box>
                         </TableCell>
                         <TableCell>
                            <Button 
@@ -139,157 +274,85 @@ const HistoryCart = () => {
                   </IconButton>
                </Box>
 
+               {/* Content */}
                <Box sx={{ p: 3 }}>
-                  <Grid container spacing={3}>
-                     {/* Thông tin đơn hàng */}
-                     <Grid item xs={12}>
-                        <Card sx={{ p: 2, bgcolor: 'grey.50' }}>
-                           <Stack spacing={2}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                 <AccessTimeIcon color="primary" />
-                                 <Typography>
-                                    Ngày đặt: {new Date(selectedOrder?.order_date as string).toLocaleString('vi-VN')}
-                                 </Typography>
-                              </Box>
-                              
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                 <PaymentIcon color="primary" />
-                                 <Stack>
-                                    <Typography>
-                                       Phương thức: {selectedOrder?.payment_method === 1 ? 
-                                          'Thanh toán online' : 'Thanh toán tại quầy'}
-                                    </Typography>
-                                    <Chip 
-                                       label={selectedOrder?.payment_status === 1 ? 'Đã thanh toán' : 'Chưa thanh toán'}
-                                       color={selectedOrder?.payment_status === 1 ? 'success' : 'error'}
-                                       size="small"
-                                       sx={{ mt: 1 }}
-                                    />
-                                 </Stack>
-                              </Box>
-                           </Stack>
-                        </Card>
+                  {/* Thông tin đơn hàng */}
+                  <Grid container spacing={2} sx={{ mb: 3 }}>
+                     <Grid item xs={12} md={6}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                           <AccessTimeIcon color="action" />
+                           <Typography>
+                              Ngày đặt: {selectedOrder && new Date(selectedOrder.order_date).toLocaleDateString('vi-VN')}
+                           </Typography>
+                        </Box>
                      </Grid>
-
-                     {/* Chi tiết phòng */}
-                     {selectedOrder?.room_order_details?.map((room) => (
-                        <Grid item xs={12} key={room.id}>
-                           <Card sx={{ 
-                              p: 2,
-                              display: 'flex',
-                              gap: 2,
-                              '&:hover': { boxShadow: 6 },
-                              transition: 'box-shadow 0.3s'
-                           }}>
-                              <Box 
-                                 component="img"
-                                 src={room.room_image}
-                                 sx={{ 
-                                    width: 200,
-                                    height: 120,
-                                    objectFit: 'cover',
-                                    borderRadius: 1,
-                                 }}
-                              />
-                              <Stack spacing={1} flex={1}>
-                                 <Typography variant="h6" color="primary">
-                                    {room.room_name}
-                                 </Typography>
-                                 
-                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <AccessTimeIcon fontSize="small" color="action" />
-                                    <Typography variant="body2">
-                                       {new Date(room.start_time).toLocaleString('vi-VN')} - 
-                                       {new Date(room.end_time).toLocaleString('vi-VN')}
-                                    </Typography>
-                                 </Box>
-
-                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <LocationOnIcon fontSize="small" color="action" />
-                                    <Typography variant="body2">
-                                       {room.room_position}
-                                    </Typography>
-                                 </Box>
-
-                                 <Typography 
-                                    variant="subtitle1" 
-                                    color="success.main"
-                                    sx={{ fontWeight: 'bold', mt: 'auto' }}
-                                 >
-                                    {room.total_price.toLocaleString('vi-VN', { 
-                                       style: 'currency', 
-                                       currency: 'VND' 
-                                    })}
-                                 </Typography>
-                              </Stack>
-                           </Card>
-                        </Grid>
-                     ))}
-
-                     {/* Chi tiết sản phẩm */}
-                     {selectedOrder?.order_details && selectedOrder.order_details.length > 0 && (
-                        <Grid item xs={12}>
-                           <Typography variant="h6" sx={{ mb: 2 }}>Chi tiết sản phẩm</Typography>
-                           <TableContainer component={Paper}>
-                              <Table>
-                                 <TableHead>
-                                    <TableRow>
-                                       <TableCell>Sản phẩm</TableCell>
-                                       <TableCell>Danh mục</TableCell>
-                                       <TableCell align="center">Số lượng</TableCell>
-                                       <TableCell align="right">Đơn giá</TableCell>
-                                       <TableCell align="right">Thành tiền</TableCell>
-                                    </TableRow>
-                                 </TableHead>
-                                 <TableBody>
-                                    {selectedOrder.order_details.map((product) => (
-                                       <TableRow key={product.id}>
-                                          <TableCell>
-                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                                <Box
-                                                   component="img"
-                                                   src={product.product_image}
-                                                   sx={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 1 }}
-                                                />
-                                                <Typography>{product.product_name}</Typography>
-                                             </Box>
-                                          </TableCell>
-                                          <TableCell>{product.category}</TableCell>
-                                          <TableCell align="center">{product.quantity}</TableCell>
-                                          <TableCell align="right">
-                                             {product.price.toLocaleString('vi-VN')}đ
-                                          </TableCell>
-                                          <TableCell align="right">
-                                             {(product.quantity * product.price).toLocaleString('vi-VN')}đ
-                                          </TableCell>
-                                       </TableRow>
-                                    ))}
-                                 </TableBody>
-                              </Table>
-                           </TableContainer>
-                        </Grid>
-                     )}
+                     <Grid item xs={12} md={6}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                           <PaymentIcon color="action" />
+                           <Typography>
+                              Tổng tiền: {selectedOrder?.total_money.toLocaleString('vi-VN')}đ
+                           </Typography>
+                        </Box>
+                     </Grid>
                   </Grid>
 
-                  <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                     <Typography variant="h6">
-                        Tổng tiền: {' '}
-                        <Typography 
-                           component="span" 
-                           color="success.main" 
-                           variant="h6" 
-                           fontWeight="bold"
-                        >
-                           {selectedOrder?.total_money.toLocaleString('vi-VN', { 
-                              style: 'currency', 
-                              currency: 'VND' 
-                           })}
-                        </Typography>
-                     </Typography>
-                     <Button variant="contained" onClick={handleCloseModal}>
-                        Đóng
-                     </Button>
-                  </Box>
+                  {/* Chi tiết phòng */}
+                  {selectedOrder?.room_order_details && selectedOrder.room_order_details.length > 0 && (
+                     <Box sx={{ mb: 3 }}>
+                        <Typography variant="h6" sx={{ mb: 2 }}>Chi tiết phòng</Typography>
+                        <TableContainer component={Paper}>
+                           <Table>
+                              <TableHead>
+                                 <TableRow>
+                                    <TableCell>Tên phòng</TableCell>
+                                    <TableCell>Thời gian bắt đầu</TableCell>
+                                    <TableCell>Thời gian kết thúc</TableCell>
+                                 </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                 {selectedOrder.room_order_details.map((room) => (
+                                    <TableRow key={room.id}>
+                                       <TableCell>{room.room_name}</TableCell>
+                                       <TableCell>{new Date(room.start_time).toLocaleString('vi-VN')}</TableCell>
+                                       <TableCell>{new Date(room.end_time).toLocaleString('vi-VN')}</TableCell>
+                                    </TableRow>
+                                 ))}
+                              </TableBody>
+                           </Table>
+                        </TableContainer>
+                     </Box>
+                  )}
+
+                  {/* Chi tiết sản phẩm */}
+                  {selectedOrder?.order_details && selectedOrder.order_details.length > 0 && (
+                     <Box>
+                        <Typography variant="h6" sx={{ mb: 2 }}>Chi tiết sản phẩm</Typography>
+                        <TableContainer component={Paper}>
+                           <Table>
+                              <TableHead>
+                                 <TableRow>
+                                    <TableCell>Tên sản phẩm</TableCell>
+                                    <TableCell align="center">Số lượng</TableCell>
+                                    <TableCell align="right">Đơn giá</TableCell>
+                                    <TableCell align="right">Thành tiền</TableCell>
+                                 </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                 {selectedOrder.order_details.map((product) => (
+                                    <TableRow key={product.id}>
+                                       <TableCell>{product.product_name}</TableCell>
+                                       <TableCell align="center">{product.quantity}</TableCell>
+                                       <TableCell align="right">{product.price.toLocaleString('vi-VN')}đ</TableCell>
+                                       <TableCell align="right">
+                                          {(product.quantity * product.price).toLocaleString('vi-VN')}đ
+                                       </TableCell>
+                                    </TableRow>
+                                 ))}
+                              </TableBody>
+                           </Table>
+                        </TableContainer>
+                     </Box>
+                  )}
                </Box>
             </Box>
          </Modal>
