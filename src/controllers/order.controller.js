@@ -735,7 +735,7 @@ export const getOrderDetail = async (req, res) => {
     };
 
     return responseSuccess(res, {
-      message: "Lấy dữ liệu thành công",
+      message: "Lấy dữ liệu th��nh công",
       data: response
     });
 
@@ -788,9 +788,6 @@ export const extendRoomTime = async (req, res) => {
     const { order_id, room_order_id, additional_hours } = req.body;
     const connection = await orderModel.connection.promise();
 
-    // Debug log
-    console.log("Request data:", { order_id, room_order_id, additional_hours });
-
     // 1. Kiểm tra và lấy thông tin chi tiết phòng đã đặt
     const [roomOrderDetails] = await connection.query(`
       SELECT 
@@ -804,44 +801,64 @@ export const extendRoomTime = async (req, res) => {
       WHERE rod.id = ? AND rod.order_id = ?
     `, [room_order_id, order_id]);
 
-    console.log("Room order details:", roomOrderDetails);
-
     if (!roomOrderDetails || roomOrderDetails.length === 0) {
-      return responseError(res, { 
-        message: "Không tìm thấy thông tin đặt phòng",
-        debug: {
-          requestData: { order_id, room_order_id, additional_hours },
-          queryResult: roomOrderDetails
-        }
-      });
+      return responseError(res, { message: "Không tìm thấy thông tin đặt phòng" });
     }
 
     const roomOrder = roomOrderDetails[0];
 
     // 2. Kiểm tra trạng thái phòng
     if (roomOrder.room_status === 'MAINTENANCE') {
-      return responseError(res, { 
-        message: "Phòng đang trong trạng thái bảo trì, không thể gia hạn" 
-      });
+      return responseError(res, { message: "Phòng đang trong trạng thái bảo trì, không thể gia hạn" });
     }
 
-    // 3. Kiểm tra thời gian kết thúc
+    // 3. Kiểm tra thời gian kết thúc hiện tại
     const currentTime = new Date();
     const endTime = new Date(roomOrder.end_time);
     if (endTime < currentTime) {
+      return responseError(res, { message: "Không thể gia hạn phòng đã hết thời gian sử dụng" });
+    }
+
+    // 4. Tính toán thời gian mới
+    const additionalTime = additional_hours * 60 * 60 * 1000; // Chuyển giờ sang milliseconds
+    const newEndTime = new Date(endTime.getTime() + additionalTime);
+
+    // 5. Kiểm tra xem có đơn đặt phòng nào trong khoảng thời gian gia hạn không
+    const [existingBookings] = await connection.query(`
+      SELECT * FROM room_order_detail rod
+      WHERE rod.room_id = ?
+        AND rod.id != ?
+        AND rod.order_id != ?
+        AND (
+          (rod.start_time < ? AND rod.end_time > ?)  -- Thời gian gia hạn nằm trong khoảng đặt phòng khác
+          OR (rod.start_time >= ? AND rod.start_time < ?) -- Có đơn đặt phòng bắt đầu trong khoảng gia hạn
+        )
+    `, [
+      roomOrder.room_id,
+      room_order_id,
+      order_id,
+      newEndTime,
+      endTime,
+      endTime,
+      newEndTime
+    ]);
+
+    if (existingBookings && existingBookings.length > 0) {
+      const nextBooking = existingBookings[0];
+      const nextBookingTime = new Date(nextBooking.start_time);
+      const availableHours = Math.floor((nextBookingTime.getTime() - endTime.getTime()) / (60 * 60 * 1000));
+      
       return responseError(res, { 
-        message: "Không thể gia hạn phòng đã hết thời gian sử dụng" 
+        message: `Không thể gia hạn ${additional_hours} giờ do có người đặt phòng vào ${nextBookingTime.toLocaleString('vi-VN')}.Hãy chọn thời gian ít hơn hoặc phòng khác nhé`
       });
     }
 
-    // 4. Tính toán thời gian và chi phí mới
-    const additionalTime = additional_hours * 60 * 60 * 1000; // Chuyển giờ sang milliseconds
-    const newEndTime = new Date(endTime.getTime() + additionalTime);
+    // 6. Tính toán chi phí mới
     const additionalPrice = additional_hours * roomOrder.price_per_hour;
     const newTotalTime = roomOrder.total_time + (additional_hours * 60); // Thêm số phút
     const newTotalMoney = roomOrder.order_total + additionalPrice;
 
-    // 5. Bắt đầu transaction
+    // 7. Bắt đầu transaction
     await connection.beginTransaction();
 
     try {
@@ -860,11 +877,11 @@ export const extendRoomTime = async (req, res) => {
         SET total_money = ?,
             payment_status = ?
         WHERE id = ?
-      `, [newTotalMoney, 0, order_id]); // Set payment_status = 0 (chưa thanh toán)
+      `, [newTotalMoney, 0, order_id]);
 
       await connection.commit();
 
-      const response = {
+      return responseSuccess(res, {
         message: "Gia hạn thời gian thành công",
         data: {
           new_end_time: newEndTime,
@@ -872,9 +889,7 @@ export const extendRoomTime = async (req, res) => {
           new_total: newTotalMoney,
           new_total_time: newTotalTime
         }
-      };
-
-      return responseSuccess(res, response);
+      });
 
     } catch (err) {
       await connection.rollback();

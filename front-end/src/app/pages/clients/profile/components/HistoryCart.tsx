@@ -60,10 +60,13 @@ interface OrderData {
    }>;
    room_order_details?: Array<{
       id: number;
+      room_id: number;
       room_name: string;
       room_image: string;
       start_time: string;
       end_time: string;
+      total_time: number;
+      total_price: number;
    }>;
 }
 
@@ -85,13 +88,14 @@ const HistoryCart = () => {
    const extendTimeMutation = useMutation({
       mutationFn: (data: { order_id: number; room_order_id: number; additional_hours: number }) =>
          postRequest('/order/extend-room-time', data),
-      onSuccess: () => {
+      onSuccess: (response) => {
          queryClient.invalidateQueries(['admin-order-user-id']);
          handleCloseExtendModal();
          toast.success('Gia hạn thời gian thành công');
       },
       onError: (error: any) => {
-         toast.error(error?.message || 'Có lỗi xảy ra khi gia hạn');
+         const errorMessage = error?.response?.data?.message || error?.message || 'Có lỗi xảy ra khi gia hạn';
+         toast.error(errorMessage);
       }
    });
 
@@ -106,12 +110,21 @@ const HistoryCart = () => {
    };
 
    const handleExtendTime = (roomOrderId: number, orderId: number) => {
+      console.log("Extending time for:", { roomOrderId, orderId });
       setExtendRoomId(roomOrderId);
       setSelectedOrderForExtend(orderId);
    };
 
    const handleConfirmExtend = () => {
-      if (!extendRoomId || !selectedOrderForExtend) return;
+      if (!extendRoomId || !selectedOrderForExtend) {
+         toast.error('Thiếu thông tin cần thiết để gia hạn');
+         return;
+      }
+
+      if (additionalHours <= 0 || additionalHours > 24) {
+         toast.error('Số giờ gia hạn không hợp lệ');
+         return;
+      }
 
       extendTimeMutation.mutate({
          order_id: selectedOrderForExtend,
@@ -406,7 +419,7 @@ const HistoryCart = () => {
                               <TableHead>
                                  <TableRow>
                                     <TableCell>Tên sản phẩm</TableCell>
-                                    <TableCell align="center">Số lượng</TableCell>
+                                    <TableCell align="center">Số l��ợng</TableCell>
                                     <TableCell align="right">Đơn giá</TableCell>
                                     <TableCell align="right">Thành tiền</TableCell>
                                  </TableRow>
@@ -460,16 +473,19 @@ const HistoryCart = () => {
                   inputProps={{ min: 1, max: 24 }}
                   fullWidth
                   margin="dense"
+                  disabled={extendTimeMutation.isPending}
                />
             </DialogContent>
             <DialogActions>
-               <Button onClick={handleCloseExtendModal}>Hủy</Button>
+               <Button onClick={handleCloseExtendModal} disabled={extendTimeMutation.isPending}>
+                  Hủy
+               </Button>
                <Button 
                   onClick={handleConfirmExtend}
                   variant="contained"
                   disabled={extendTimeMutation.isPending}
                >
-                  Xác nhận
+                  {extendTimeMutation.isPending ? 'Đang xử lý...' : 'Xác nhận'}
                </Button>
             </DialogActions>
          </Dialog>
