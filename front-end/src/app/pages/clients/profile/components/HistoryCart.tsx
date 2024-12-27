@@ -25,7 +25,7 @@ import {
    DialogActions,
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import PaymentIcon from '@mui/icons-material/Payment';
@@ -34,6 +34,9 @@ import ReceiptIcon from '@mui/icons-material/Receipt';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import { toast } from 'react-toastify';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
+import UpdateIcon from '@mui/icons-material/Update';
 
 import {
    getNextStatus,
@@ -44,6 +47,14 @@ import {
 import { getRequest, postRequest } from '~/app/configs';
 import useAuth from '~/app/redux/slices/auth.slice';
 import { type ResponseGet } from '~/app/types/response';
+
+interface ExtendRequest {
+   id: number;
+   room_order_id: number;
+   request_status: 'PENDING' | 'APPROVED' | 'REJECTED';
+   additional_hours: number;
+   additional_price: number;
+}
 
 interface OrderData {
    id: number;
@@ -67,6 +78,7 @@ interface OrderData {
       end_time: string;
       total_time: number;
       total_price: number;
+      extend_request?: ExtendRequest;
    }>;
 }
 
@@ -85,16 +97,51 @@ const HistoryCart = () => {
       queryFn: () => getRequest(`/order/get-one-order-by-user-id/${user?.id}`),
    });
 
+   const { data: extendRequests } = useQuery<ResponseGet<ExtendRequest[]>>({
+      queryKey: ['extend-requests'],
+      queryFn: () => getRequest(`/order/extend-requests/${user?.id}`),
+   });
+
+   const ordersWithExtendRequests = useMemo(() => {
+      if (!orders?.data || !extendRequests?.data) return [];
+
+      return orders.data.map(order => ({
+         ...order,
+         room_order_details: order.room_order_details?.map(room => ({
+            ...room,
+            extend_request: extendRequests.data.find(
+               req => req.room_order_id === room.id
+            )
+         }))
+      }));
+   }, [orders?.data, extendRequests?.data]);
+
+   const filteredOrders = ordersWithExtendRequests?.filter(order => {
+      const hasProducts = order.order_details && order.order_details.length > 0;
+      const hasRooms = order.room_order_details && order.room_order_details.length > 0;
+
+      switch (currentTab) {
+         case 'products':
+            return hasProducts && !hasRooms;
+         case 'rooms':
+            return hasRooms && !hasProducts;
+         case 'mixed':
+            return hasProducts && hasRooms;
+         case 'all':
+         default:
+            return true;
+      }
+   });
+
    const extendTimeMutation = useMutation({
       mutationFn: (data: { order_id: number; room_order_id: number; additional_hours: number }) =>
          postRequest('/order/extend-room-time', data),
       onSuccess: (response) => {
-         queryClient.invalidateQueries(['admin-order-user-id']);
          handleCloseExtendModal();
-         toast.success('Gia hạn thời gian thành công');
+         toast.success('Yêu cầu gia hạn đã được gửi, vui lòng đợi admin phê duyệt');
       },
       onError: (error: any) => {
-         const errorMessage = error?.response?.data?.message || error?.message || 'Có lỗi xảy ra khi gia hạn';
+         const errorMessage = error?.response?.data?.message || 'Có lỗi xảy ra khi gửi yêu cầu gia hạn';
          toast.error(errorMessage);
       }
    });
@@ -139,22 +186,57 @@ const HistoryCart = () => {
       setAdditionalHours(1);
    };
 
-   const filteredOrders = orders?.data?.filter(order => {
-      const hasProducts = order.order_details && order.order_details.length > 0;
-      const hasRooms = order.room_order_details && order.room_order_details.length > 0;
+   const RenderRoomActions = ({ room, order }) => {
+      const isPastEndTime = new Date(room.end_time) < new Date();
+      const hasExtendRequest = room.extend_request;
 
-      switch (currentTab) {
-         case 'products':
-            return hasProducts && !hasRooms;
-         case 'rooms':
-            return hasRooms && !hasProducts;
-         case 'mixed':
-            return hasProducts && hasRooms;
-         case 'all':
-         default:
-            return true;
+      if (isPastEndTime) {
+         return <Typography color="error">Đã hết hạn</Typography>;
       }
-   });
+
+      if (hasExtendRequest) {
+         switch (room.extend_request.request_status) {
+            case 'PENDING':
+               return (
+                  <Chip
+                     label="Đang chờ duyệt"
+                     color="warning"
+                     icon={<AccessTimeIcon />}
+                  />
+               );
+            case 'APPROVED':
+               return (
+                  <Chip
+                     label="Đã được duyệt"
+                     color="success"
+                     icon={<CheckCircleIcon />}
+                  />
+               );
+            case 'REJECTED':
+               return (
+                  <Chip
+                     label="Đã bị từ chối"
+                     color="error"
+                     icon={<CancelIcon />}
+                  />
+               );
+            default:
+               return null;
+         }
+      }
+
+      return (
+         <Button
+            variant="contained"
+            color="primary"
+            size="small"
+            onClick={() => handleExtendTime(room.id, order.id)}
+            startIcon={<UpdateIcon />}
+         >
+            Gia hạn
+         </Button>
+      );
+   };
 
    return (
       <Box sx={{ 
@@ -392,15 +474,7 @@ const HistoryCart = () => {
                                        <TableCell>{new Date(room.start_time).toLocaleString('vi-VN')}</TableCell>
                                        <TableCell>{new Date(room.end_time).toLocaleString('vi-VN')}</TableCell>
                                        <TableCell>
-                                          <Button
-                                             variant="contained"
-                                             color="primary"
-                                             size="small"
-                                             onClick={() => handleExtendTime(room.id, selectedOrder!.id)}
-                                             disabled={new Date(room.end_time) < new Date()}
-                                          >
-                                             Gia hạn
-                                          </Button>
+                                          <RenderRoomActions room={room} order={selectedOrder} />
                                        </TableCell>
                                     </TableRow>
                                  ))}
@@ -419,7 +493,7 @@ const HistoryCart = () => {
                               <TableHead>
                                  <TableRow>
                                     <TableCell>Tên sản phẩm</TableCell>
-                                    <TableCell align="center">Số l��ợng</TableCell>
+                                    <TableCell align="center">Số lượng</TableCell>
                                     <TableCell align="right">Đơn giá</TableCell>
                                     <TableCell align="right">Thành tiền</TableCell>
                                  </TableRow>

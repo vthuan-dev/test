@@ -21,6 +21,8 @@ import {
    DialogActions,
    TextField,
    MenuItem,
+   Chip,
+   Divider,
 } from '@mui/material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
@@ -435,6 +437,115 @@ const OrderDetail = () => {
    const hasRooms = order?.rooms && order.rooms.length > 0;
    const hasProducts = order?.products && order.products.length > 0;
 
+   // Thêm state và query cho yêu cầu gia hạn
+   const [extendRequestDialogOpen, setExtendRequestDialogOpen] = useState(false);
+   const [selectedRequest, setSelectedRequest] = useState<any>(null);
+
+   // Query để lấy danh sách yêu cầu gia hạn cho đơn hàng cụ thể
+   const { data: extendRequests } = useQuery({
+      queryKey: ['extend-requests', id],
+      queryFn: () => getRequest(`/order/extend-requests/${id}`),
+      enabled: !!id
+   });
+
+   // Mutation để xử lý yêu cầu
+   const { mutate: handleExtendRequest } = useMutation({
+      mutationFn: (data: { request_id: number; status: 'APPROVED' | 'REJECTED' }) =>
+         postRequest('/order/approve-extend-room', data),
+      onSuccess: () => {
+         queryClient.invalidateQueries(['extend-requests', id]);
+         toast.success('Đã xử lý yêu cầu gia hạn');
+      },
+   });
+
+   // Thêm component ExtendRequestDialog
+   const ExtendRequestDialog = () => (
+      <Dialog 
+         open={extendRequestDialogOpen} 
+         onClose={() => setExtendRequestDialogOpen(false)}
+         maxWidth="sm"
+         fullWidth
+      >
+         <DialogTitle>
+            Chi tiết yêu cầu gia hạn
+         </DialogTitle>
+         <DialogContent>
+            {selectedRequest && (
+               <Box sx={{ p: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                     Thông tin phòng:
+                  </Typography>
+                  <Typography variant="body2">
+                     Tên phòng: {selectedRequest.room_name}
+                  </Typography>
+                  <Typography variant="body2">
+                     Thời gian hiện tại: {dayjs(selectedRequest.start_time).format('DD/MM/YYYY HH:mm')} - 
+                     {dayjs(selectedRequest.end_time).format('DD/MM/YYYY HH:mm')}
+                  </Typography>
+
+                  <Divider sx={{ my: 2 }} />
+
+                  <Typography variant="subtitle2" gutterBottom>
+                     Thông tin gia hạn:
+                  </Typography>
+                  <Typography variant="body2">
+                     Số giờ gia hạn: {selectedRequest.additional_hours} giờ
+                  </Typography>
+                  <Typography variant="body2">
+                     Phí gia hạn: {selectedRequest.additional_price.toLocaleString()}đ
+                  </Typography>
+                  <Typography variant="body2">
+                     Thời gian yêu cầu: {dayjs(selectedRequest.created_at).format('DD/MM/YYYY HH:mm')}
+                  </Typography>
+
+                  <Divider sx={{ my: 2 }} />
+
+                  <Typography variant="subtitle2" gutterBottom>
+                     Thông tin khách hàng:
+                  </Typography>
+                  <Typography variant="body2">
+                     Tên: {selectedRequest.username}
+                  </Typography>
+                  <Typography variant="body2">
+                     Email: {selectedRequest.email}
+                  </Typography>
+                  <Typography variant="body2">
+                     SĐT: {selectedRequest.phone}
+                  </Typography>
+               </Box>
+            )}
+         </DialogContent>
+         <DialogActions>
+            <Button onClick={() => setExtendRequestDialogOpen(false)}>
+               Đóng
+            </Button>
+            {selectedRequest?.request_status === 'PENDING' && (
+               <>
+                  <Button
+                     color="error"
+                     onClick={() => handleExtendRequest({
+                        request_id: selectedRequest.request_id,
+                        status: 'REJECTED'
+                     })}
+                  >
+                     Từ chối
+                  </Button>
+                  <Button
+                     variant="contained"
+                     onClick={() => handleExtendRequest({
+                        request_id: selectedRequest.request_id,
+                        status: 'APPROVED'
+                     })}
+                  >
+                     Duyệt yêu cầu
+                  </Button>
+               </>
+            )}
+         </DialogActions>
+      </Dialog>
+   );
+
+   // Thêm section hiển thị yêu cầu gia hạn
    return (
       <BaseBreadcrumbs arialabel="Chi tiết hóa đơn" breadcrumbs={breadcrumbs}>
          {/* Actions Section */}
@@ -701,6 +812,86 @@ const OrderDetail = () => {
          )}
 
          <RoomChangeDialog />
+         <ExtendRequestDialog />
+
+         {/* Thêm section yêu cầu gia hạn sau phần chi tiết đặt phòng */}
+         {hasRooms && extendRequests?.data?.length > 0 && (
+            <>
+               <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>Yêu cầu gia hạn</Typography>
+               <TableContainer>
+                  <Table>
+                     <TableHead>
+                        <TableRow>
+                           <TableCell>Tên phòng</TableCell>
+                           <TableCell>Số giờ gia hạn</TableCell>
+                           <TableCell>Phí gia hạn</TableCell>
+                           <TableCell>Thời gian yêu cầu</TableCell>
+                           <TableCell>Trạng thái</TableCell>
+                           <TableCell>Thao tác</TableCell>
+                        </TableRow>
+                     </TableHead>
+                     <TableBody>
+                        {extendRequests.data.map((request: any) => (
+                           <TableRow key={request.id}>
+                              <TableCell>{request.room_name}</TableCell>
+                              <TableCell>{request.additional_hours} giờ</TableCell>
+                              <TableCell>{formatPrice(request.additional_price)} đ</TableCell>
+                              <TableCell>
+                                 {dayjs(request.created_at).format('DD/MM/YYYY HH:mm')}
+                              </TableCell>
+                              <TableCell>
+                                 <Chip
+                                    label={
+                                       request.request_status === 'PENDING'
+                                          ? 'Chờ duyệt'
+                                          : request.request_status === 'APPROVED'
+                                          ? 'Đã duyệt'
+                                          : 'Đã từ chối'
+                                    }
+                                    color={
+                                       request.request_status === 'PENDING'
+                                          ? 'warning'
+                                          : request.request_status === 'APPROVED'
+                                          ? 'success'
+                                          : 'error'
+                                    }
+                                 />
+                              </TableCell>
+                              <TableCell>
+                                 {request.request_status === 'PENDING' && (
+                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                       <Button
+                                          size="small"
+                                          variant="contained"
+                                          color="success"
+                                          onClick={() => handleExtendRequest({
+                                             request_id: request.id,
+                                             status: 'APPROVED'
+                                          })}
+                                       >
+                                          Duyệt
+                                       </Button>
+                                       <Button
+                                          size="small"
+                                          variant="contained"
+                                          color="error"
+                                          onClick={() => handleExtendRequest({
+                                             request_id: request.id,
+                                             status: 'REJECTED'
+                                          })}
+                                       >
+                                          Từ chối
+                                       </Button>
+                                    </Box>
+                                 )}
+                              </TableCell>
+                           </TableRow>
+                        ))}
+                     </TableBody>
+                  </Table>
+               </TableContainer>
+            </>
+         )}
       </BaseBreadcrumbs>
    );
 };

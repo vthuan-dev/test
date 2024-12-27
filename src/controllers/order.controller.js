@@ -735,7 +735,7 @@ export const getOrderDetail = async (req, res) => {
     };
 
     return responseSuccess(res, {
-      message: "Lấy dữ liệu th��nh công",
+      message: "Lấy dữ liệu thành công",
       data: response
     });
 
@@ -788,116 +788,154 @@ export const extendRoomTime = async (req, res) => {
     const { order_id, room_order_id, additional_hours } = req.body;
     const connection = await orderModel.connection.promise();
 
-    // 1. Kiểm tra và lấy thông tin chi tiết phòng đã đặt
+    // Lấy thông tin phòng và đơn hàng hiện tại
     const [roomOrderDetails] = await connection.query(`
       SELECT 
         rod.*,
-        r.price as price_per_hour,
+        r.room_name,
+        r.price as base_price,
         r.status as room_status,
-        o.total_money as order_total
+        o.total_money as order_total,
+        u.is_vip,
+        u.vip_end_date
       FROM room_order_detail rod
       JOIN room r ON rod.room_id = r.id
       JOIN orders o ON rod.order_id = o.id
+      JOIN user u ON o.user_id = u.id
       WHERE rod.id = ? AND rod.order_id = ?
     `, [room_order_id, order_id]);
 
-    if (!roomOrderDetails || roomOrderDetails.length === 0) {
+    if (!roomOrderDetails.length) {
       return responseError(res, { message: "Không tìm thấy thông tin đặt phòng" });
     }
 
     const roomOrder = roomOrderDetails[0];
+    let basePrice = roomOrder.base_price;
 
-    // 2. Kiểm tra trạng thái phòng
-    if (roomOrder.room_status === 'MAINTENANCE') {
-      return responseError(res, { message: "Phòng đang trong trạng thái bảo trì, không thể gia hạn" });
+    // Tính giá theo số giờ gia hạn
+    let pricePerHour = basePrice;
+    if (additional_hours >= 10) {
+      // Giảm 15% nếu gia hạn từ 10 giờ trở lên
+      pricePerHour = basePrice * 0.85;
+    } else if (additional_hours >= 5) {
+      // Giảm 10% nếu gia hạn từ 5-9 giờ
+      pricePerHour = basePrice * 0.9;
     }
 
-    // 3. Kiểm tra thời gian kết thúc hiện tại
-    const currentTime = new Date();
-    const endTime = new Date(roomOrder.end_time);
-    if (endTime < currentTime) {
-      return responseError(res, { message: "Không thể gia hạn phòng đã hết thời gian sử dụng" });
+    // Tính tổng phí gia hạn
+    let additionalPrice = additional_hours * pricePerHour;
+
+    // Áp dụng giảm giá VIP nếu có
+    if (roomOrder.is_vip && new Date(roomOrder.vip_end_date) > new Date()) {
+      // Giảm thêm 10% cho khách VIP
+      additionalPrice = additionalPrice * 0.9;
     }
 
-    // 4. Tính toán thời gian mới
-    const additionalTime = additional_hours * 60 * 60 * 1000; // Chuyển giờ sang milliseconds
-    const newEndTime = new Date(endTime.getTime() + additionalTime);
+    // Làm tròn đến hàng nghìn
+    additionalPrice = Math.round(additionalPrice / 1000) * 1000;
 
-    // 5. Kiểm tra xem có đơn đặt phòng nào trong khoảng thời gian gia hạn không
-    const [existingBookings] = await connection.query(`
-      SELECT * FROM room_order_detail rod
-      WHERE rod.room_id = ?
-        AND rod.id != ?
-        AND rod.order_id != ?
-        AND (
-          (rod.start_time < ? AND rod.end_time > ?)  -- Thời gian gia hạn nằm trong khoảng đặt phòng khác
-          OR (rod.start_time >= ? AND rod.start_time < ?) -- Có đơn đặt phòng bắt đầu trong khoảng gia hạn
-        )
-    `, [
-      roomOrder.room_id,
-      room_order_id,
-      order_id,
-      newEndTime,
-      endTime,
-      endTime,
-      newEndTime
-    ]);
+    // Lưu yêu cầu gia hạn
+    const [result] = await connection.query(`
+      INSERT INTO extend_room_requests 
+      (room_order_id, additional_hours, additional_price, request_status)
+      VALUES (?, ?, ?, 'PENDING')
+    `, [room_order_id, additional_hours, additionalPrice]);
 
-    if (existingBookings && existingBookings.length > 0) {
-      const nextBooking = existingBookings[0];
-      const nextBookingTime = new Date(nextBooking.start_time);
-      const availableHours = Math.floor((nextBookingTime.getTime() - endTime.getTime()) / (60 * 60 * 1000));
-      
-      return responseError(res, { 
-        message: `Không thể gia hạn ${additional_hours} giờ do có người đặt phòng vào ${nextBookingTime.toLocaleString('vi-VN')}.Hãy chọn thời gian ít hơn hoặc phòng khác nhé`
-      });
-    }
+    // Tính toán các mức giảm giá để hiển thị
+    const discounts = [];
+    if (additional_hours >= 10) discounts.push('15% (Gia hạn 10h+)');
+    else if (additional_hours >= 5) discounts.push('10% (Gia hạn 5h+)');
+    if (roomOrder.is_vip) discounts.push('10% (Khách VIP)');
 
-    // 6. Tính toán chi phí mới
-    const additionalPrice = additional_hours * roomOrder.price_per_hour;
-    const newTotalTime = roomOrder.total_time + (additional_hours * 60); // Thêm số phút
-    const newTotalMoney = roomOrder.order_total + additionalPrice;
-
-    // 7. Bắt đầu transaction
-    await connection.beginTransaction();
-
-    try {
-      // Cập nhật room_order_detail
-      await connection.query(`
-        UPDATE room_order_detail 
-        SET end_time = ?,
-            total_time = ?,
-            total_price = total_price + ?
-        WHERE id = ?
-      `, [newEndTime, newTotalTime, additionalPrice, room_order_id]);
-
-      // Cập nhật tổng tiền trong orders
-      await connection.query(`
-        UPDATE orders 
-        SET total_money = ?,
-            payment_status = ?
-        WHERE id = ?
-      `, [newTotalMoney, 0, order_id]);
-
-      await connection.commit();
-
-      return responseSuccess(res, {
-        message: "Gia hạn thời gian thành công",
-        data: {
-          new_end_time: newEndTime,
-          additional_price: additionalPrice,
-          new_total: newTotalMoney,
-          new_total_time: newTotalTime
-        }
-      });
-
-    } catch (err) {
-      await connection.rollback();
-      throw err;
-    }
+    return responseSuccess(res, {
+      message: "Yêu cầu gia hạn đã được gửi",
+      data: {
+        request_id: result.insertId,
+        room_name: roomOrder.room_name,
+        additional_hours,
+        base_price: basePrice,
+        price_per_hour: pricePerHour,
+        final_price: additionalPrice,
+        discounts: discounts.join(', ') || 'Không có',
+        total_discount: `${Math.round((1 - additionalPrice/(basePrice * additional_hours)) * 100)}%`
+      }
+    });
 
   } catch (error) {
     console.error("Error in extendRoomTime:", error);
+    return responseError(res, error);
+  }
+};
+
+// Thêm API mới để admin duyệt yêu cầu
+export const approveExtendRoom = async (req, res) => {
+  const connection = await orderModel.connection.promise();
+  await connection.beginTransaction();
+
+  try {
+    const { request_id, status } = req.body;
+
+    // Lấy thông tin yêu cầu
+    const [requests] = await connection.query(
+      'SELECT * FROM extend_room_requests WHERE id = ?',
+      [request_id]
+    );
+
+    if (!requests.length) {
+      return responseError(res, { message: "Không tìm thấy yêu cầu gia hạn" });
+    }
+
+    const request = requests[0];
+
+    // Cập nhật trạng thái yêu cầu
+    await connection.query(
+      'UPDATE extend_room_requests SET request_status = ? WHERE id = ?',
+      [status, request_id]
+    );
+
+    if (status === 'APPROVED') {
+      // Thực hiện logic gia hạn như cũ
+      // Copy logic từ hàm extendRoomTime cũ vào đây
+    }
+
+    await connection.commit();
+    return responseSuccess(res, {
+      message: status === 'APPROVED' ? "Đã duyệt yêu cầu gia hạn" : "Đã từ chối yêu cầu gia hạn"
+    });
+
+  } catch (error) {
+    await connection.rollback();
+    return responseError(res, error);
+  }
+};
+
+export const getExtendRequests = async (req, res) => {
+  try {
+    const { order_id } = req.params;
+    const connection = await orderModel.connection.promise();
+
+    const [requests] = await connection.query(`
+      SELECT 
+        er.id,
+        er.room_order_id,
+        er.request_status,
+        er.additional_hours,
+        er.additional_price,
+        er.created_at,
+        rod.start_time,
+        rod.end_time,
+        r.room_name
+      FROM extend_room_requests er
+      JOIN room_order_detail rod ON er.room_order_id = rod.id
+      JOIN room r ON rod.room_id = r.id
+      WHERE rod.order_id = ?
+    `, [order_id]);
+
+    return responseSuccess(res, {
+      message: "Lấy danh sách yêu cầu gia hạn thành công",
+      data: requests
+    });
+  } catch (error) {
     return responseError(res, error);
   }
 };

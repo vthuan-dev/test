@@ -359,3 +359,40 @@ export const getAvailableRooms = async (req, res) => {
     return responseError(res, error);
   }
 };
+
+export const getExtendRequests = async (req, res) => {
+  try {
+    const connection = await orderRoomModel.connection.promise();
+    
+    // Lấy tất cả yêu cầu gia hạn kèm thông tin chi tiết
+    const [requests] = await connection.query(`
+      SELECT 
+        er.id as request_id,
+        er.room_order_id,
+        er.request_status,
+        er.additional_hours,
+        er.additional_price,
+        er.created_at,
+        rod.start_time,
+        rod.end_time,
+        r.room_name,
+        o.id as order_id,
+        u.username,
+        u.email,
+        u.phone
+      FROM extend_room_requests er
+      JOIN room_order_detail rod ON er.room_order_id = rod.id
+      JOIN room r ON rod.room_id = r.id
+      JOIN orders o ON rod.order_id = o.id
+      JOIN user u ON o.user_id = u.id
+      ORDER BY er.created_at DESC
+    `);
+
+    return responseSuccess(res, {
+      message: "Lấy danh sách yêu cầu gia hạn thành công",
+      data: requests
+    });
+  } catch (error) {
+    return responseError(res, error);
+  }
+};
