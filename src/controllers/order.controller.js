@@ -750,12 +750,23 @@ export const getAllOrders = async (req, res) => {
     const { page = 1, limit = 10, isPagination = false } = req.query;
     const offset = (page - 1) * limit;
 
-    // Thêm ORDER BY vào câu query
+    // Sửa lại query để tính tổng tiền chính xác
     const query = `
       SELECT 
         o.*,
         u.fullname as user_name,
-        u.email as user_email
+        u.email as user_email,
+        (
+          SELECT SUM(rod.total_price)
+          FROM room_order_detail rod
+          WHERE rod.order_id = o.id
+        ) + COALESCE(
+          (
+            SELECT SUM(od.price * od.quantity)
+            FROM order_detail od
+            WHERE od.order_id = o.id
+          ), 0
+        ) as calculated_total
       FROM orders o
       LEFT JOIN users u ON o.user_id = u.id
       ORDER BY o.created_at DESC, o.id DESC
@@ -763,14 +774,32 @@ export const getAllOrders = async (req, res) => {
     `;
 
     const [orders] = await orderModel.connection.promise().query(query);
-    
-    // ... rest of the code (pagination calculation etc)
+
+    // Cập nhật total_money nếu khác với calculated_total
+    for (const order of orders) {
+      if (order.total_money !== order.calculated_total) {
+        await orderModel.connection.promise().query(
+          'UPDATE orders SET total_money = ? WHERE id = ?',
+          [order.calculated_total, order.id]
+        );
+        order.total_money = order.calculated_total;
+      }
+    }
+
+    // Tính toán phân trang nếu cần
+    let totalItems;
+    if (isPagination === 'true') {
+      const [countResult] = await orderModel.connection.promise().query(
+        'SELECT COUNT(*) as total FROM orders'
+      );
+      totalItems = countResult[0].total;
+    }
 
     return responseSuccess(res, {
       message: "Lấy danh sách đơn hàng thành công",
       data: orders,
       pagination: isPagination === 'true' ? {
-        totalPage,
+        totalPage: Math.ceil(totalItems / limit),
         currentPage: +page,
         pageSize: +limit,
         totalRow: totalItems
@@ -814,7 +843,7 @@ export const extendRoomTime = async (req, res) => {
     const currentEndTime = new Date(roomDetail.end_time);
     const newEndTime = new Date(currentEndTime.getTime() + (additional_hours * 60 * 60 * 1000));
 
-    // 3. Kiểm tra xem phòng có được đặt trong khoảng thời gian mới không
+    // 3. Ki���m tra xem phòng có được đặt trong khoảng thời gian mới không
     const [conflicts] = await connection.query(`
       SELECT * FROM room_order_detail 
       WHERE room_id = ? 
@@ -896,10 +925,17 @@ export const approveExtendRoom = async (req, res) => {
         rod.total_time,
         rod.total_price,
         rod.room_id,
-        r.price as room_price
+        r.price as room_price,
+        r.room_name,
+        o.total_money as order_total,
+        o.id as order_id,
+        u.is_vip,
+        u.vip_end_date
       FROM extend_room_requests er
       JOIN room_order_detail rod ON er.room_order_id = rod.id
       JOIN room r ON rod.room_id = r.id
+      JOIN orders o ON er.order_id = o.id
+      JOIN user u ON o.user_id = u.id
       WHERE er.id = ? AND er.request_status = 'PENDING'
     `, [request_id]);
 
@@ -909,53 +945,75 @@ export const approveExtendRoom = async (req, res) => {
 
     const request = requests[0];
 
-    // 2. Nếu APPROVED, kiểm tra xung đột thời gian
+    // 2. Nếu APPROVED, thực hiện cập nhật
     if (status === 'APPROVED') {
+      // Tính toán thời gian mới
       const currentEndTime = new Date(request.end_time);
-      const newEndTime = new Date(currentEndTime.getTime() + (request.additional_hours * 60 * 60 * 1000));
+      const additionalTime = request.additional_hours * 60 * 60 * 1000;
+      const newEndTime = new Date(currentEndTime.getTime() + additionalTime);
       
-      // Kiểm tra xung đột
-      const [conflicts] = await connection.query(`
-        SELECT * FROM room_order_detail 
-        WHERE room_id = ? 
-        AND start_time < ? 
-        AND end_time > ?
-        AND id != ?
-      `, [request.room_id, newEndTime, currentEndTime, request.room_order_id]);
+      // Tính total_time (số giờ) từ start_time đến new_end_time
+      const startTime = new Date(request.start_time);
+      const totalHours = Math.ceil((newEndTime.getTime() - startTime.getTime()) / (60 * 60 * 1000));
 
-      if (conflicts.length > 0) {
-        return responseError(res, { 
-          message: "Không thể gia hạn do phòng đã có người đặt trong khoảng thời gian này" 
-        });
-      }
+      // Tính lại tổng giá tiền dựa trên s�� giờ và đơn giá từ bảng room
+      const totalPrice = totalHours * request.room_price;
 
-      // 3. Cập nhật room_order_detail
+      // 3. Cập nhật room_order_detail với tổng giá mới
       await connection.query(`
         UPDATE room_order_detail 
         SET 
           end_time = ?,
-          total_time = total_time + ?,
-          total_price = total_price + ?
+          total_time = ?,
+          total_price = ?
         WHERE id = ?
-      `, [newEndTime, request.additional_hours, request.additional_price, request.room_order_id]);
+      `, [
+        newEndTime,
+        totalHours,
+        totalPrice,
+        request.room_order_id
+      ]);
 
-      // 4. Cập nhật tổng tiền trong orders
+      // 4. Cập nhật tổng tiền trong orders - chỉ tính tiền phòng
       await connection.query(`
-        UPDATE orders 
-        SET total_money = total_money + ?
-        WHERE id = ?
-      `, [request.additional_price, request.order_id]);
+        UPDATE orders o
+        SET total_money = (
+          SELECT SUM(total_price) 
+          FROM room_order_detail rod 
+          WHERE rod.order_id = o.id
+        )
+        WHERE o.id = ?
+      `, [request.order_id]);
     }
 
     // 5. Cập nhật trạng thái yêu cầu
-    await connection.query(
-      'UPDATE extend_room_requests SET request_status = ?, updated_at = NOW() WHERE id = ?',
-      [status, request_id]
-    );
+    await connection.query(`
+      UPDATE extend_room_requests 
+      SET 
+        request_status = ?,
+        updated_at = NOW()
+      WHERE id = ?
+    `, [status, request_id]);
 
     await connection.commit();
+
+    // 6. Query lại dữ liệu sau khi cập nhật để kiểm tra
+    const [updatedData] = await connection.query(`
+      SELECT 
+        rod.end_time,
+        rod.total_time,
+        rod.total_price,
+        o.total_money,
+        r.room_name
+      FROM room_order_detail rod
+      JOIN orders o ON rod.order_id = o.id
+      JOIN room r ON rod.room_id = r.id
+      WHERE rod.id = ?
+    `, [request.room_order_id]);
+
     return responseSuccess(res, {
-      message: status === 'APPROVED' ? "Đã duyệt và cập nhật thời gian gia hạn" : "Đã từ chối yêu cầu gia hạn"
+      message: status === 'APPROVED' ? "Đã duyệt và cập nhật thời gian gia hạn" : "Đã từ chối yêu cầu gia hạn",
+      data: status === 'APPROVED' ? updatedData[0] : null
     });
 
   } catch (error) {
