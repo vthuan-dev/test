@@ -1,11 +1,14 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/naming-convention */
 import React, { useEffect, useMemo, useState } from 'react';
-import { Divider, Grid, Typography, Button, Box, Container } from '@mui/material';
+import { Divider, Grid, Typography, Button, Box, Container, Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import dayjs from 'dayjs';
+import DiscountIcon from '@mui/icons-material/Discount';
+import TimerIcon from '@mui/icons-material/Timer';
+import StarIcon from '@mui/icons-material/Star';
 
 import { getCart } from './service';
 import CartItem from './components/CartItem';
@@ -17,11 +20,64 @@ import useAuth from '~/app/redux/slices/auth.slice';
 import { ROUTE_PATH } from '@constants';
 import { getAllTimeline } from '@pages/admin/rom/service';
 
+const DiscountModal = ({ open, onClose }) => {
+   return (
+      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+         <DialogTitle sx={{ bgcolor: 'primary.main', color: 'white' }}>
+            Chính Sách Giảm Giá
+         </DialogTitle>
+         <DialogContent>
+            <List>
+               <ListItem>
+                  <ListItemIcon>
+                     <TimerIcon color="primary" />
+                  </ListItemIcon>
+                  <ListItemText 
+                     primary="Giảm giá theo thời gian thuê"
+                     secondary={
+                        <React.Fragment>
+                           <Typography component="span" display="block">• Thuê ≥ 30 ngày: Giảm 30%</Typography>
+                           <Typography component="span" display="block">• Thuê ≥ 7 ngày: Giảm 25%</Typography>
+                           <Typography component="span" display="block">• Thuê ≥ 3 ngày: Giảm 20%</Typography>
+                        </React.Fragment>
+                     }
+                  />
+               </ListItem>
+               <ListItem>
+                  <ListItemIcon>
+                     <DiscountIcon color="primary" />
+                  </ListItemIcon>
+                  <ListItemText 
+                     primary="Giảm giá theo ngày"
+                     secondary="Tính 20 giờ thay vì 24 giờ mỗi ngày (Giảm 17%)"
+                  />
+               </ListItem>
+               <ListItem>
+                  <ListItemIcon>
+                     <StarIcon color="primary" />
+                  </ListItemIcon>
+                  <ListItemText 
+                     primary="Thành viên VIP"
+                     secondary="Giảm thêm 10% trên tổng hóa đơn"
+                  />
+               </ListItem>
+            </List>
+         </DialogContent>
+         <DialogActions>
+            <Button onClick={onClose} variant="contained">
+               Đã hiểu
+            </Button>
+         </DialogActions>
+      </Dialog>
+   );
+};
+
 const Cart: React.FC = () => {
    const { user, isAuhthentication } = useAuth();
    const navigate = useNavigate();
    const [rooms, setRooms] = useState<Array<CartRoom>>([]);
    const [isOpen, setIsOpen] = useState<boolean>(false);
+   const [showDiscount, setShowDiscount] = useState(true);
 
    const onClose = () => setIsOpen(false);
 
@@ -111,6 +167,11 @@ const Cart: React.FC = () => {
 
    return (
       <Container maxWidth="lg">
+         <DiscountModal 
+            open={showDiscount} 
+            onClose={() => setShowDiscount(false)} 
+         />
+         
          {rooms.length === 0 && products.length === 0 ? (
             <Typography variant="h3" component="h3" textAlign="center" mt={10}>
                Không có sản phẩm nào trong giỏ hàng
@@ -120,6 +181,13 @@ const Cart: React.FC = () => {
                <Typography variant="h4" gutterBottom align="center" sx={{ fontWeight: 'bold', marginTop: 3 }}>
                   Giỏ Hàng Đặt Phòng & Sản Phẩm
                </Typography>
+               <Button 
+                  startIcon={<DiscountIcon />}
+                  onClick={() => setShowDiscount(true)}
+                  sx={{ mb: 2 }}
+               >
+                  Xem chính sách giảm giá
+               </Button>
                <Divider sx={{ marginBottom: 3 }} />
 
                <Grid container spacing={2} sx={{ position: 'relative' }}>

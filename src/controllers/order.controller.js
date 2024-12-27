@@ -7,6 +7,7 @@ import orderRoomModel from "../models/order-room.model";
 import { ORDER_STATUS, ORDER_TYPE } from "../config/constant";
 import { getBillNotify, getOrderSuccessNotify } from "../helpers/emailTemplate";
 import { sendMail } from "../helpers/sendMail";
+import { calculateRoomPrice } from "../helpers/calculatePrice";
 
 export const getAll = async (req, res) => {
   try {
@@ -36,56 +37,130 @@ export const getAll = async (req, res) => {
 };
 
 export const create = async (req, res) => {
+  const connection = await orderModel.connection.promise();
   try {
-    const { carts, products, orderType, rooms, orders, username, email, ...remainBody } =
-      req.body;
+    const { rooms, products, username, email, ...remainBody } = req.body;
+    
+    await connection.beginTransaction();
+
+    // Tạo order
     const result = await orderModel.create({
       ...remainBody,
       status: ORDER_STATUS.CONFIRMED,
     });
 
     const order_id = result?.insertId;
+    let totalOrderPrice = 0;
 
-    const productWithOrderId = [];
-    const roomWithOrderId = [];
-
-    if (products && products.length > 0) {
-      products.forEach((product) => {
-        productWithOrderId.push({
-          ...product,
-          product_id: parseInt(product.product_id),
-          order_id,
-        });
-      });
-      orderDetailModel.createMultiple(productWithOrderId)
-    }
-
+    // 1. Xử lý đặt phòng
     if (rooms && rooms.length > 0) {
-      rooms.map((room) => {
-        roomWithOrderId.push({
-          ...room,
-          room_id: parseInt(room.room_id),
+      for (const room of rooms) {
+        try {
+          // Lấy thông tin phòng và user
+          const [roomInfo] = await connection.query(`
+            SELECT price, room_name FROM room WHERE id = ?
+          `, [room.room_id]);
+
+          if (!roomInfo.length) {
+            throw new Error(`Không tìm thấy phòng với ID ${room.room_id}`);
+          }
+
+          // Tính giá phòng
+          const { totalHours, totalPrice } = calculateRoomPrice({
+            startTime: room.start_time,
+            endTime: room.end_time,
+            roomPrice: roomInfo[0].price
+          });
+
+          totalOrderPrice += totalPrice;
+
+          // Lưu chi tiết đặt phòng
+          await connection.query(`
+            INSERT INTO room_order_detail 
+            (order_id, room_id, start_time, end_time, total_time, total_price)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `, [
+            order_id,
+            room.room_id,
+            room.start_time,
+            room.end_time,
+            totalHours,
+            totalPrice
+          ]);
+        } catch (error) {
+          await connection.rollback();
+          return responseError(res, {
+            message: `Lỗi khi xử lý phòng: ${error.message}`
+          });
+        }
+      }
+    }
+
+    // 2. Xử lý đặt sản phẩm
+    if (products && products.length > 0) {
+      for (const product of products) {
+        const [productInfo] = await connection.query(
+          'SELECT price FROM product WHERE id = ?',
+          [product.product_id]
+        );
+
+        if (!productInfo.length) {
+          await connection.rollback();
+          return responseError(res, {
+            message: `Không tìm thấy sản phẩm với ID ${product.product_id}`
+          });
+        }
+
+        const productPrice = productInfo[0].price * product.quantity;
+        totalOrderPrice += productPrice;
+
+        await connection.query(`
+          INSERT INTO order_detail 
+          (order_id, product_id, quantity, price)
+          VALUES (?, ?, ?, ?)
+        `, [
           order_id,
-        });
-      });
-      orderRoomModel.createMultiple(roomWithOrderId)
+          product.product_id,
+          product.quantity,
+          productInfo[0].price
+        ]);
+      }
     }
 
-    if(carts && carts.length > 0) { 
-      await cartModel.deleteMultple("id", carts);
-    }
+    // 3. Cập nhật tổng tiền
+    await connection.query(
+      'UPDATE orders SET total_money = ? WHERE id = ?',
+      [totalOrderPrice, order_id]
+    );
 
-    const response = {
-      data: result,
-      message: "Tạo mới hóa đơn thành công",
+    await connection.commit();
+
+    // Gửi email
+    const sendEmail = {
+      order_id,
+      username,
+      total: totalOrderPrice,
+      email
     };
-    const sendEmail = {order_id: order_id, username: username, total: remainBody?.total_money, email: email}
-    const resp = await sendMail(getOrderSuccessNotify(sendEmail));
-    responseSuccess(res, response);
+    await sendMail(getOrderSuccessNotify(sendEmail));
+
+    return responseSuccess(res, {
+      message: "Tạo mới hóa đơn thành công",
+      data: {
+        order_id,
+        total_money: totalOrderPrice,
+        breakdown: {
+          rooms: rooms?.length || 0,
+          products: products?.length || 0
+        }
+      }
+    });
+
   } catch (error) {
+    if (connection) await connection.rollback();
+    console.error("Create order error:", error);
     return responseError(res, error);
   }
-      console.log('req.body:', req.body)
 };
 
 export const getDetailById = async (req, res) => {
@@ -843,7 +918,7 @@ export const extendRoomTime = async (req, res) => {
     const currentEndTime = new Date(roomDetail.end_time);
     const newEndTime = new Date(currentEndTime.getTime() + (additional_hours * 60 * 60 * 1000));
 
-    // 3. Ki���m tra xem phòng có được đặt trong khoảng thời gian mới không
+    // 3. Kiểm tra xem phòng có được đặt trong khoảng thời gian mới không
     const [conflicts] = await connection.query(`
       SELECT * FROM room_order_detail 
       WHERE room_id = ? 
@@ -908,6 +983,49 @@ export const extendRoomTime = async (req, res) => {
   }
 };
 
+// Thêm hàm tính giá
+const calculateTotalPrice = (startTime, endTime, roomPrice, isVip, vipEndDate) => {
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+  const totalHours = Math.ceil((end - start) / (1000 * 60 * 60));
+  const days = Math.floor(totalHours / 24);
+  const remainingHours = totalHours % 24;
+  
+  let totalPrice = 0;
+  
+  // 1. Tính giá theo ngày
+  if (days > 0) {
+    let dailyRate = roomPrice * 24;
+    if (days >= 30) {
+      dailyRate *= 0.7; // Giảm 30% cho thuê >= 30 ngày
+    } else if (days >= 7) {
+      dailyRate *= 0.75; // Giảm 25% cho thuê >= 7 ngày
+    } else {
+      dailyRate *= 0.8; // Giảm 20% cho thuê theo ngày
+    }
+    totalPrice += days * dailyRate;
+  }
+
+  // 2. Tính giá giờ lẻ
+  if (remainingHours > 0) {
+    let hourlyRate = roomPrice;
+    if (remainingHours >= 5) {
+      hourlyRate *= 0.95; // Giảm 5% nếu thuê từ 5 giờ trở lên
+    }
+    totalPrice += remainingHours * hourlyRate;
+  }
+
+  // 3. Áp dụng giảm giá VIP
+  if (isVip && new Date(vipEndDate) > new Date()) {
+    totalPrice *= 0.9; // Giảm thêm 10% cho VIP
+  }
+
+  return {
+    totalHours,
+    totalPrice: Math.round(totalPrice / 1000) * 1000 // Làm tròn đến 1000
+  };
+};
+
 // Thêm API mới để admin duyệt yêu cầu
 export const approveExtendRoom = async (req, res) => {
   const connection = await orderModel.connection.promise();
@@ -947,19 +1065,19 @@ export const approveExtendRoom = async (req, res) => {
 
     // 2. Nếu APPROVED, thực hiện cập nhật
     if (status === 'APPROVED') {
-      // Tính toán thời gian mới
       const currentEndTime = new Date(request.end_time);
       const additionalTime = request.additional_hours * 60 * 60 * 1000;
       const newEndTime = new Date(currentEndTime.getTime() + additionalTime);
-      
-      // Tính total_time (số giờ) từ start_time đến new_end_time
-      const startTime = new Date(request.start_time);
-      const totalHours = Math.ceil((newEndTime.getTime() - startTime.getTime()) / (60 * 60 * 1000));
 
-      // Tính lại tổng giá tiền dựa trên s�� giờ và đơn giá từ bảng room
-      const totalPrice = totalHours * request.room_price;
+      const { totalHours, totalPrice } = calculateTotalPrice(
+        request.start_time,
+        newEndTime,
+        request.room_price,
+        request.is_vip,
+        request.vip_end_date
+      );
 
-      // 3. Cập nhật room_order_detail với tổng giá mới
+      // Cập nhật room_order_detail
       await connection.query(`
         UPDATE room_order_detail 
         SET 
@@ -967,21 +1085,20 @@ export const approveExtendRoom = async (req, res) => {
           total_time = ?,
           total_price = ?
         WHERE id = ?
-      `, [
-        newEndTime,
-        totalHours,
-        totalPrice,
-        request.room_order_id
-      ]);
+      `, [newEndTime, totalHours, totalPrice, request.room_order_id]);
 
-      // 4. Cập nhật tổng tiền trong orders - chỉ tính tiền phòng
+      // Cập nhật tổng tiền orders (bao gồm cả sản phẩm)
       await connection.query(`
         UPDATE orders o
         SET total_money = (
           SELECT SUM(total_price) 
           FROM room_order_detail rod 
           WHERE rod.order_id = o.id
-        )
+        ) + COALESCE((
+          SELECT SUM(price * quantity)
+          FROM order_detail od
+          WHERE od.order_id = o.id
+        ), 0)
         WHERE o.id = ?
       `, [request.order_id]);
     }
