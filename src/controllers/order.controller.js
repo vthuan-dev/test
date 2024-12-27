@@ -785,79 +785,62 @@ export const getAllOrders = async (req, res) => {
 
 export const extendRoomTime = async (req, res) => {
   try {
-    const { order_id, room_order_id, additional_hours } = req.body;
+    const { room_order_id, additional_hours } = req.body;
     const connection = await orderModel.connection.promise();
 
-    // Lấy thông tin phòng và đơn hàng hiện tại
-    const [roomOrderDetails] = await connection.query(`
+    // Lấy thông tin phòng, đơn hàng và người dùng
+    const [roomDetails] = await connection.query(`
       SELECT 
         rod.*,
-        r.room_name,
-        r.price as base_price,
-        r.status as room_status,
-        o.total_money as order_total,
+        r.price as room_price,
+        o.id as order_id,
         u.is_vip,
         u.vip_end_date
       FROM room_order_detail rod
-      JOIN room r ON rod.room_id = r.id
       JOIN orders o ON rod.order_id = o.id
+      JOIN room r ON rod.room_id = r.id
       JOIN user u ON o.user_id = u.id
-      WHERE rod.id = ? AND rod.order_id = ?
-    `, [room_order_id, order_id]);
+      WHERE rod.id = ?
+    `, [room_order_id]);
 
-    if (!roomOrderDetails.length) {
+    if (!roomDetails.length) {
       return responseError(res, { message: "Không tìm thấy thông tin đặt phòng" });
     }
 
-    const roomOrder = roomOrderDetails[0];
-    let basePrice = roomOrder.base_price;
+    const roomDetail = roomDetails[0];
+    let pricePerHour = roomDetail.room_price;
 
-    // Tính giá theo số giờ gia hạn
-    let pricePerHour = basePrice;
-    if (additional_hours >= 10) {
-      // Giảm 15% nếu gia hạn từ 10 giờ trở lên
-      pricePerHour = basePrice * 0.85;
-    } else if (additional_hours >= 5) {
-      // Giảm 10% nếu gia hạn từ 5-9 giờ
-      pricePerHour = basePrice * 0.9;
+    // Áp dụng giảm giá
+    if (roomDetail.is_vip && new Date(roomDetail.vip_end_date) > new Date()) {
+      pricePerHour *= 0.9; // Giảm 10% cho VIP
+    }
+    if (additional_hours >= 5) {
+      pricePerHour *= 0.95; // Giảm thêm 5% nếu gia hạn từ 5 giờ
     }
 
-    // Tính tổng phí gia hạn
-    let additionalPrice = additional_hours * pricePerHour;
+    // Tính tổng tiền gia hạn và làm tròn đến hàng nghìn
+    const additionalPrice = Math.round((pricePerHour * additional_hours) / 1000) * 1000;
 
-    // Áp dụng giảm giá VIP nếu có
-    if (roomOrder.is_vip && new Date(roomOrder.vip_end_date) > new Date()) {
-      // Giảm thêm 10% cho khách VIP
-      additionalPrice = additionalPrice * 0.9;
-    }
-
-    // Làm tròn đến hàng nghìn
-    additionalPrice = Math.round(additionalPrice / 1000) * 1000;
-
-    // Lưu yêu cầu gia hạn
+    // Lưu yêu cầu gia hạn với order_id
     const [result] = await connection.query(`
       INSERT INTO extend_room_requests 
-      (room_order_id, additional_hours, additional_price, request_status)
-      VALUES (?, ?, ?, 'PENDING')
-    `, [room_order_id, additional_hours, additionalPrice]);
-
-    // Tính toán các mức giảm giá để hiển thị
-    const discounts = [];
-    if (additional_hours >= 10) discounts.push('15% (Gia hạn 10h+)');
-    else if (additional_hours >= 5) discounts.push('10% (Gia hạn 5h+)');
-    if (roomOrder.is_vip) discounts.push('10% (Khách VIP)');
+      (order_id, room_order_id, additional_hours, additional_price)
+      VALUES (?, ?, ?, ?)
+    `, [roomDetail.order_id, room_order_id, additional_hours, additionalPrice]);
 
     return responseSuccess(res, {
-      message: "Yêu cầu gia hạn đã được gửi",
+      message: "Đã gửi yêu cầu gia hạn",
       data: {
-        request_id: result.insertId,
-        room_name: roomOrder.room_name,
+        id: result.insertId,
+        room_order_id,
+        order_id: roomDetail.order_id,
         additional_hours,
-        base_price: basePrice,
-        price_per_hour: pricePerHour,
-        final_price: additionalPrice,
-        discounts: discounts.join(', ') || 'Không có',
-        total_discount: `${Math.round((1 - additionalPrice/(basePrice * additional_hours)) * 100)}%`
+        additional_price: additionalPrice,
+        request_status: 'PENDING',
+        discounts: [
+          roomDetail.is_vip ? "10% (VIP)" : null,
+          additional_hours >= 5 ? "5% (Gia hạn 5h+)" : null
+        ].filter(Boolean).join(", ")
       }
     });
 

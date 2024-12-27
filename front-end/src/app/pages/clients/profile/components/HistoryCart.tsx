@@ -82,6 +82,31 @@ interface OrderData {
    }>;
 }
 
+const styles = {
+   '@keyframes pulse': {
+      '0%': {
+         opacity: 1,
+      },
+      '50%': {
+         opacity: 0.6,
+      },
+      '100%': {
+         opacity: 1,
+      },
+   },
+   '@keyframes highlight': {
+      '0%': {
+         transform: 'scale(1)',
+      },
+      '50%': {
+         transform: 'scale(1.05)',
+      },
+      '100%': {
+         transform: 'scale(1)',
+      },
+   },
+};
+
 const HistoryCart = () => {
    const { user } = useAuth();
    const [openModal, setOpenModal] = useState(false);
@@ -195,30 +220,57 @@ const HistoryCart = () => {
       }
 
       if (hasExtendRequest) {
-         switch (room.extend_request.request_status) {
+         switch (hasExtendRequest.request_status) {
             case 'PENDING':
                return (
                   <Chip
                      label="Đang chờ duyệt"
                      color="warning"
                      icon={<AccessTimeIcon />}
+                     sx={{ animation: 'pulse 1.5s infinite' }}
                   />
                );
             case 'APPROVED':
                return (
-                  <Chip
-                     label="Đã được duyệt"
-                     color="success"
-                     icon={<CheckCircleIcon />}
-                  />
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                     <Chip
+                        label="Đã được duyệt"
+                        color="success"
+                        icon={<CheckCircleIcon />}
+                     />
+                     <Button
+                        variant="outlined"
+                        color="primary"
+                        size="small"
+                        onClick={() => handleExtendTime(room.id, order.id)}
+                        startIcon={<UpdateIcon />}
+                        sx={{ 
+                           animation: 'highlight 2s infinite',
+                           ml: 1 
+                        }}
+                     >
+                        Gia hạn tiếp
+                     </Button>
+                  </Box>
                );
             case 'REJECTED':
                return (
-                  <Chip
-                     label="Đã bị từ chối"
-                     color="error"
-                     icon={<CancelIcon />}
-                  />
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                     <Chip
+                        label="Đã bị từ chối"
+                        color="error"
+                        icon={<CancelIcon />}
+                     />
+                     <Button
+                        variant="contained"
+                        color="primary"
+                        size="small"
+                        onClick={() => handleExtendTime(room.id, order.id)}
+                        startIcon={<UpdateIcon />}
+                     >
+                        Thử lại
+                     </Button>
+                  </Box>
                );
             default:
                return null;
@@ -252,7 +304,7 @@ const HistoryCart = () => {
             fontWeight: 'bold', 
             color: 'primary.main' 
          }}>
-            Lịch sử đặt hàng
+            Lịch sử ��ặt hàng
          </Typography>
 
          {/* Tabs Filter */}
