@@ -149,6 +149,8 @@ const OrderDetail = () => {
    const [changeRoomOpen, setChangeRoomOpen] = useState(false);
    const [selectedRoom, setSelectedRoom] = useState<any>(null);
    const [newRoomId, setNewRoomId] = useState<string>('');
+   const [newStartTime, setNewStartTime] = useState<string>('');
+   const [newEndTime, setNewEndTime] = useState<string>('');
 
    const { data: availableRooms, refetch: refetchAvailableRooms } = useQuery({
       queryKey: ['available-rooms', selectedRoom?.start_time, selectedRoom?.end_time],
@@ -205,26 +207,19 @@ const OrderDetail = () => {
          return;
       }
 
-      // Kiểm tra và chuyển đổi kiểu dữ liệu
       const orderId = Number(order?.order_id);
       const orderDetailId = Number(selectedRoom.id);
       const oldRoomId = Number(selectedRoom.room_id);
       const newRoomIdNum = Number(newRoomId);
 
-      // Convert local time to UTC before sending
-      const startTime = dayjs(selectedRoom.start_time).utc().format('YYYY-MM-DD HH:mm:ss');
-      const endTime = dayjs(selectedRoom.end_time).utc().format('YYYY-MM-DD HH:mm:ss');
-
-      console.log('Time conversion:', {
-         original: {
-            start: selectedRoom.start_time,
-            end: selectedRoom.end_time
-         },
-         converted: {
-            start: startTime,
-            end: endTime
-         }
-      });
+      // Sử dụng thời gian mới nếu có, nếu không sử dụng thời gian cũ
+      const startTime = newStartTime 
+         ? dayjs(newStartTime).utc().format('YYYY-MM-DD HH:mm:ss')
+         : dayjs(selectedRoom.start_time).utc().format('YYYY-MM-DD HH:mm:ss');
+      
+      const endTime = newEndTime
+         ? dayjs(newEndTime).utc().format('YYYY-MM-DD HH:mm:ss')
+         : dayjs(selectedRoom.end_time).utc().format('YYYY-MM-DD HH:mm:ss');
 
       const changeRoomData = {
          orderId,
@@ -246,6 +241,8 @@ const OrderDetail = () => {
             setChangeRoomOpen(false);
             setSelectedRoom(null);
             setNewRoomId('');
+            setNewStartTime('');
+            setNewEndTime('');
          }}
          maxWidth="sm"
          fullWidth
@@ -298,6 +295,44 @@ const OrderDetail = () => {
                               </Typography>
                            </Box>
                         </Box>
+                     </Box>
+
+                     <Box sx={{ mt: 2 }}>
+                        <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                           Thời gian đặt mới (không bắt buộc):
+                        </Typography>
+                        <Grid container spacing={2}>
+                           <Grid item xs={6}>
+                              <TextField
+                                 type="datetime-local"
+                                 label="Thời gian bắt đầu"
+                                 fullWidth
+                                 value={newStartTime}
+                                 onChange={(e) => setNewStartTime(e.target.value)}
+                                 InputLabelProps={{ shrink: true }}
+                                 sx={{ 
+                                    '& .MuiOutlinedInput-root': {
+                                       borderRadius: 2
+                                    }
+                                 }}
+                              />
+                           </Grid>
+                           <Grid item xs={6}>
+                              <TextField
+                                 type="datetime-local"
+                                 label="Thời gian kết thúc"
+                                 fullWidth
+                                 value={newEndTime}
+                                 onChange={(e) => setNewEndTime(e.target.value)}
+                                 InputLabelProps={{ shrink: true }}
+                                 sx={{ 
+                                    '& .MuiOutlinedInput-root': {
+                                       borderRadius: 2
+                                    }
+                                 }}
+                              />
+                           </Grid>
+                        </Grid>
                      </Box>
                   </Box>
                )}
@@ -369,7 +404,15 @@ const OrderDetail = () => {
             </Box>
          </DialogContent>
          <DialogActions>
-            <Button onClick={() => setChangeRoomOpen(false)}>Hủy</Button>
+            <Button onClick={() => {
+               setChangeRoomOpen(false);
+               setSelectedRoom(null);
+               setNewRoomId('');
+               setNewStartTime('');
+               setNewEndTime('');
+            }}>
+               Hủy
+            </Button>
             <Button 
                variant="contained" 
                onClick={handleChangeRoom}
@@ -619,7 +662,7 @@ const OrderDetail = () => {
                         <TableHead>
                            <TableRow>
                               <TableCell>
-                                 <strong>Tên sản phẩm</strong>
+                                 <strong>Tên s���n phẩm</strong>
                               </TableCell>
                               <TableCell align="center">
                                  <strong>Danh mục</strong>

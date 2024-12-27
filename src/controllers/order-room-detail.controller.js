@@ -146,75 +146,111 @@ export const changeRoom = async (req, res) => {
     const { orderId, orderDetailId, oldRoomId, newRoomId, startTime, endTime } = req.body;
 
     // Validate input
-    if (!orderId || !orderDetailId || !oldRoomId || !newRoomId || !startTime || !endTime) {
+    if (!orderId || !orderDetailId || !oldRoomId || !startTime || !endTime) {
       return responseError(res, {
         message: "Thiếu thông tin bắt buộc"
       });
     }
 
+    // Validate thời gian
+    const start = dayjs(startTime);
+    const end = dayjs(endTime);
+    const now = dayjs();
+
+    // So sánh ngày bằng dayjs thay vì Date
+    if (end.isBefore(start)) {
+      return responseError(res, {
+        message: "Thời gian kết thúc phải sau thời gian bắt đầu"
+      });
+    }
+
+    // Chỉ kiểm tra thời gian trong quá khứ với ngày hiện tại, không kiểm tra giờ
+    if (start.format('YYYY-MM-DD') < now.format('YYYY-MM-DD')) {
+      return responseError(res, {
+        message: "Không thể đặt thời gian trong quá khứ"
+      });
+    }
+
     await connection.beginTransaction();
 
-    // 1. Kiểm tra xem phòng mới có bị đặt trong khoảng thời gian này không
+    // 1. Kiểm tra xung đột thời gian
     const [conflicts] = await connection.query(`
-      SELECT * FROM room_order_detail 
-      WHERE room_id = ? 
-        AND id != ?
+      SELECT 
+        rod.*,
+        r.room_name,
+        o.status as order_status
+      FROM room_order_detail rod
+      JOIN room r ON r.id = rod.room_id 
+      JOIN orders o ON o.id = rod.order_id
+      WHERE rod.room_id = ? 
+        AND rod.id != ?
+        AND o.status NOT IN ('CANCELLED', 'CHECKED_OUT')
         AND (
-          (start_time <= ? AND end_time >= ?)  -- Kiểm tra thời gian bắt đầu
-          OR (start_time <= ? AND end_time >= ?)  -- Kiểm tra thời gian kết thúc
-          OR (? <= start_time AND ? >= end_time)  -- Kiểm tra khoảng thời gian bao phủ
+          (rod.start_time < ? AND rod.end_time > ?)  -- Kiểm tra thời gian bắt đầu
+          OR (rod.start_time < ? AND rod.end_time > ?)  -- Kiểm tra thời gian kết thúc
+          OR (? <= rod.start_time AND ? >= rod.end_time)  -- Kiểm tra khoảng thời gian bao phủ
         )
     `, [
-      newRoomId,
+      newRoomId || oldRoomId,
       orderDetailId,
-      startTime, startTime,     // Kiểm tra thời gian bắt đầu
-      endTime, endTime,         // Kiểm tra thời gian kết thúc
-      startTime, endTime        // Kiểm tra khoảng thời gian bao phủ
+      endTime, startTime,
+      endTime, endTime,
+      startTime, endTime
     ]);
-
-    // Debug log
-    console.log('Checking conflicts for:', {
-      newRoomId,
-      orderDetailId,
-      startTime,
-      endTime,
-      conflicts: conflicts.length > 0 ? conflicts : 'No conflicts'
-    });
 
     if (conflicts.length > 0) {
       await connection.rollback();
       return responseError(res, {
         message: "Phòng đã có người đặt trong khoảng thời gian này",
-        conflicts: conflicts
+        conflicts: conflicts.map(c => ({
+          ...c,
+          start_time: dayjs(c.start_time).format('YYYY-MM-DD HH:mm:ss'),
+          end_time: dayjs(c.end_time).format('YYYY-MM-DD HH:mm:ss')
+        }))
       });
     }
 
-    // 2. Lấy giá phòng mới
+    // 2. Lấy giá phòng
     const [rooms] = await connection.query(
       'SELECT price FROM room WHERE id = ?',
-      [newRoomId]
+      [newRoomId || oldRoomId]
     );
 
     if (!rooms.length) {
       await connection.rollback();
       return responseError(res, {
-        message: "Không tìm thấy thông tin phòng mới"
+        message: "Không tìm thấy thông tin phòng"
       });
     }
 
     // 3. Tính toán tổng tiền mới
-    const startDateTime = new Date(startTime);
-    const endDateTime = new Date(endTime);
-    const hours = Math.ceil((endDateTime - startDateTime) / (1000 * 60 * 60));
+    const hours = Math.ceil(
+      end.diff(start, 'hour', true)  // Sử dụng diff của dayjs thay vì getTime
+    );
     const newTotalPrice = hours * rooms[0].price;
 
     // 4. Cập nhật room_order_detail
+    const updateFields = [];
+    const updateValues = [];
+
+    if (newRoomId && newRoomId !== oldRoomId) {
+      updateFields.push('room_id = ?');
+      updateValues.push(newRoomId);
+    }
+
+    // Format thời gian sang định dạng MySQL
+    const formattedStartTime = start.format('YYYY-MM-DD HH:mm:ss');
+    const formattedEndTime = end.format('YYYY-MM-DD HH:mm:ss');
+
+    updateFields.push('start_time = ?', 'end_time = ?', 'total_time = ?', 'total_price = ?');
+    updateValues.push(formattedStartTime, formattedEndTime, hours, newTotalPrice);
+    updateValues.push(orderDetailId, orderId);
+
     const [updateResult] = await connection.query(`
       UPDATE room_order_detail 
-      SET room_id = ?,
-          total_price = ?
+      SET ${updateFields.join(', ')}
       WHERE id = ? AND order_id = ?
-    `, [newRoomId, newTotalPrice, orderDetailId, orderId]);
+    `, updateValues);
 
     if (updateResult.affectedRows === 0) {
       await connection.rollback();
@@ -241,15 +277,15 @@ export const changeRoom = async (req, res) => {
     await connection.commit();
 
     return responseSuccess(res, {
-      message: "Đổi phòng thành công",
+      message: newRoomId ? "Đổi phòng thành công" : "Cập nhật thời gian thành công",
       data: {
         orderId,
         orderDetailId,
-        oldRoomId,
-        newRoomId,
+        roomId: newRoomId || oldRoomId,
         newTotalPrice,
         startTime,
-        endTime
+        endTime,
+        totalTime: hours
       }
     });
 
