@@ -314,61 +314,57 @@ const OrderDetail = () => {
                      }
                   }}
                >
-                  {availableRooms?.data?.map((room: any) => {
-                     const hasConflict = room.conflicts && room.conflicts.length > 0;
-                     
-                     return (
-                        <MenuItem 
-                           key={room.room_id}
-                           value={room.room_id}
-                           disabled={hasConflict || room.room_id === selectedRoom?.room_id}
-                           sx={{
-                              py: 1.5,
-                              px: 2,
-                              borderRadius: 1,
-                              mb: 0.5,
-                              '&:hover': {
-                                 bgcolor: 'primary.lighter'
-                              },
-                              '&.Mui-disabled': {
-                                 opacity: 0.7,
-                                 bgcolor: 'grey.100'
-                              }
-                           }}
-                        >
-                           <Box sx={{ width: '100%' }}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                                 <Typography variant="body2" fontWeight={500}>
-                                    {room.name}
-                                 </Typography>
-                                 <Typography 
-                                    variant="body2" 
-                                    color="primary.main"
-                                    fontWeight={500}
-                                 >
-                                    {Number(room.price).toLocaleString()}đ/giờ
-                                 </Typography>
-                              </Box>
-                              
-                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                 <FiberManualRecordIcon 
-                                    sx={{ 
-                                       mr: 0.5, 
-                                       fontSize: 12,
-                                       color: hasConflict ? 'error.main' : 'success.main'
-                                    }} 
-                                 />
-                                 <Typography 
-                                    variant="caption"
-                                    color={hasConflict ? 'error.main' : 'success.main'}
-                                 >
-                                    {hasConflict ? 'Đã có người đặt' : 'Trống'}
-                                 </Typography>
-                              </Box>
+                  {availableRooms?.data?.map((room: any) => (
+                     <MenuItem 
+                        key={room.room_id}
+                        value={room.room_id}
+                        disabled={room.status === 'Có người đặt' || room.room_id === selectedRoom?.room_id}
+                        sx={{
+                           py: 1.5,
+                           px: 2,
+                           borderRadius: 1,
+                           mb: 0.5,
+                           '&:hover': {
+                              bgcolor: 'primary.lighter'
+                           },
+                           '&.Mui-disabled': {
+                              opacity: 0.7,
+                              bgcolor: 'grey.100'
+                           }
+                        }}
+                     >
+                        <Box sx={{ width: '100%' }}>
+                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                              <Typography variant="body2" fontWeight={500}>
+                                 {room.name}
+                              </Typography>
+                              <Typography 
+                                 variant="body2" 
+                                 color="primary.main"
+                                 fontWeight={500}
+                              >
+                                 {Number(room.price).toLocaleString()}đ/giờ
+                              </Typography>
                            </Box>
-                        </MenuItem>
-                     );
-                  })}
+                           
+                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <FiberManualRecordIcon 
+                                 sx={{ 
+                                    mr: 0.5, 
+                                    fontSize: 12,
+                                    color: room.status === 'Có người đặt' ? 'error.main' : 'success.main'
+                                 }} 
+                              />
+                              <Typography 
+                                 variant="caption"
+                                 color={room.status === 'Có người đặt' ? 'error.main' : 'success.main'}
+                              >
+                                 {room.status}
+                              </Typography>
+                           </Box>
+                        </Box>
+                     </MenuItem>
+                  ))}
                </TextField>
             </Box>
          </DialogContent>
