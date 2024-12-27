@@ -12,12 +12,26 @@ import {
    styled,
    Tooltip,
    type ButtonProps,
+   Badge,
+   Popover,
+   List,
+   ListItem,
+   ListItemText,
+   ListItemAvatar,
+   Avatar,
+   Typography,
 } from '@mui/material';
 import Avatar from '@mui/material/Avatar';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 import Logout from '@mui/icons-material/Logout';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import { useQuery } from '@tanstack/react-query';
+import { getRequest } from '~/app/configs';
+import { useNavigate } from 'react-router-dom';
+import dayjs from 'dayjs';
+import { createGlobalStyle } from 'styled-components';
 
 import stillGamingNoBack from '../../../assets/images/still-gaming-no-back.png';
 
@@ -26,10 +40,27 @@ import HeaderMenu from './HeaderMenu';
 import useAuth from '~/app/redux/slices/auth.slice';
 import { ROUTE_PATH } from '@constants';
 
+const GlobalStyles = createGlobalStyle`
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+  }
+`;
+
 const HeaderAdmin = () => {
    const { authLogout, user } = useAuth();
    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
    const isOpen = Boolean(anchorEl);
+   const navigate = useNavigate();
+   const [anchorElNotif, setAnchorElNotif] = useState<null | HTMLElement>(null);
+
+   // Query để lấy danh sách yêu cầu gia hạn đang chờ duyệt
+   const { data: pendingRequests } = useQuery({
+      queryKey: ['pending-extend-requests'],
+      queryFn: () => getRequest('/order/pending-extend-requests'),
+      refetchInterval: 30000, // Tự động refresh mỗi 30 giây
+   });
 
    const handleClick = (event: React.MouseEvent<HTMLElement>) => {
       setAnchorEl(anchorEl ? null : event.currentTarget);
@@ -46,6 +77,19 @@ const HeaderAdmin = () => {
    const handleClickLogout = () => {
       handleClose();
       authLogout();
+   };
+
+   const handleNotifClick = (event: React.MouseEvent<HTMLElement>) => {
+      setAnchorElNotif(event.currentTarget);
+   };
+
+   const handleNotifClose = () => {
+      setAnchorElNotif(null);
+   };
+
+   const handleViewRequest = (orderId: number) => {
+      navigate(`/admin/orders/${orderId}`);
+      handleNotifClose();
    };
 
    return (
@@ -92,7 +136,31 @@ const HeaderAdmin = () => {
                <Grid item xs={9}>
                   {/* <HeaderMenu /> */}
                </Grid>
-               <Grid item xs={1} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+               <Grid item xs={1} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                  {/* Notification Icon */}
+                  <IconButton
+                     onClick={handleNotifClick}
+                     sx={{
+                        color: 'white',
+                        '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' }
+                     }}
+                  >
+                     <Badge 
+                        badgeContent={pendingRequests?.data?.length || 0} 
+                        color="error"
+                        sx={{
+                           '& .MuiBadge-badge': {
+                              animation: pendingRequests?.data?.length 
+                                 ? 'pulse 2s infinite' 
+                                 : 'none'
+                           }
+                        }}
+                     >
+                        <NotificationsIcon />
+                     </Badge>
+                  </IconButton>
+
+                  {/* User Menu */}
                   <Box sx={{ position: 'relative' }}>
                      <Tooltip title="Cài đặt tài khoản">
                         <IconButton
@@ -199,6 +267,72 @@ const HeaderAdmin = () => {
                </Grid>
             </Grid>
          </Container>
+
+         {/* Notifications Popover */}
+         <Popover
+            open={Boolean(anchorElNotif)}
+            anchorEl={anchorElNotif}
+            onClose={handleNotifClose}
+            anchorOrigin={{
+               vertical: 'bottom',
+               horizontal: 'right',
+            }}
+            transformOrigin={{
+               vertical: 'top',
+               horizontal: 'right',
+            }}
+            PaperProps={{
+               sx: {
+                  width: 400,
+                  maxHeight: 500,
+                  overflow: 'auto',
+                  mt: 1,
+                  bgcolor: '#1a1f3c',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
+               }
+            }}
+         >
+            <List sx={{ p: 0 }}>
+               {pendingRequests?.data?.length === 0 ? (
+                  <ListItem sx={{ color: 'white' }}>
+                     <ListItemText primary="Không có thông báo mới" />
+                  </ListItem>
+               ) : (
+                  pendingRequests?.data?.map((request: any) => (
+                     <ListItem 
+                        key={request.id}
+                        onClick={() => handleViewRequest(request.order_id)}
+                        sx={{
+                           cursor: 'pointer',
+                           borderBottom: '1px solid rgba(255,255,255,0.1)',
+                           '&:hover': {
+                              bgcolor: 'rgba(255,255,255,0.05)'
+                           }
+                        }}
+                     >
+                        <ListItemAvatar>
+                           <Avatar sx={{ bgcolor: 'primary.main' }}>
+                              <AccessTimeIcon />
+                           </Avatar>
+                        </ListItemAvatar>
+                        <ListItemText
+                           primary={
+                              <Typography color="white">
+                                 Yêu cầu gia hạn phòng {request.room_name}
+                              </Typography>
+                           }
+                           secondary={
+                              <Typography color="grey.400" variant="body2">
+                                 {dayjs(request.created_at).format('DD/MM/YYYY HH:mm')}
+                              </Typography>
+                           }
+                        />
+                     </ListItem>
+                  ))
+               )}
+            </List>
+         </Popover>
       </Box>
    );
 };

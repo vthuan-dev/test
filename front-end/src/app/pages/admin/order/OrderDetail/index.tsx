@@ -29,7 +29,7 @@ import { useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
@@ -61,7 +61,7 @@ export const ORDER_STATUS = Object.freeze({
    CANCELLED: 'CANCELLED', // hủy
 });
 
-// Cấu trúc nhãn trạng thái đơn hàng bằng tiếng Việt
+// Cấu trúc nhãn trạng thái đơn hàng bằng ti��ng Việt
 export const ORDER_STATUS_LABELS = Object.freeze({
    PENDING: 'Đang chờ xác nhận',
    CONFIRMED: 'Đã xác nhận',
@@ -458,6 +458,16 @@ const OrderDetail = () => {
       },
    });
 
+   // Thêm mutation cho việc cập nhật trạng thái thanh toán
+   const { mutate: updatePaymentStatus } = useMutation({
+      mutationFn: (request_id: number) =>
+         putRequest(`/order/extend-payment/${request_id}`),
+      onSuccess: () => {
+         queryClient.invalidateQueries(['extendRequests', id]);
+         toast.success('Đã cập nhật trạng thái thanh toán');
+      },
+   });
+
    // Thêm component ExtendRequestDialog
    const ExtendRequestDialog = () => (
       <Dialog 
@@ -544,6 +554,14 @@ const OrderDetail = () => {
          </DialogActions>
       </Dialog>
    );
+
+   // Tính tổng tiền chưa thanh toán từ các yêu cầu gia hạn
+   const unpaidAmount = useMemo(() => {
+      if (!extendRequests?.data) return 0;
+      return extendRequests.data
+         .filter(req => req.request_status === 'APPROVED' && req.payment_status === 'UNPAID')
+         .reduce((sum, req) => sum + req.additional_price, 0);
+   }, [extendRequests?.data]);
 
    // Thêm section hiển thị yêu cầu gia hạn
    return (
@@ -827,6 +845,7 @@ const OrderDetail = () => {
                            <TableCell>Phí gia hạn</TableCell>
                            <TableCell>Thời gian yêu cầu</TableCell>
                            <TableCell>Trạng thái</TableCell>
+                           <TableCell>Thanh toán</TableCell>
                            <TableCell>Thao tác</TableCell>
                         </TableRow>
                      </TableHead>
@@ -856,6 +875,20 @@ const OrderDetail = () => {
                                           : 'error'
                                     }
                                  />
+                              </TableCell>
+                              <TableCell>
+                                 {request.request_status === 'APPROVED' && (
+                                    <Chip
+                                       label={request.payment_status === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                                       color={request.payment_status === 'PAID' ? 'success' : 'warning'}
+                                       onClick={() => {
+                                          if (request.payment_status === 'UNPAID') {
+                                             updatePaymentStatus(request.id);
+                                          }
+                                       }}
+                                       sx={{ cursor: request.payment_status === 'UNPAID' ? 'pointer' : 'default' }}
+                                    />
+                                 )}
                               </TableCell>
                               <TableCell>
                                  {request.request_status === 'PENDING' && (
@@ -891,6 +924,14 @@ const OrderDetail = () => {
                   </Table>
                </TableContainer>
             </>
+         )}
+
+         {unpaidAmount > 0 && (
+            <Box sx={{ mt: 2, p: 2, bgcolor: 'warning.lighter', borderRadius: 1 }}>
+               <Typography color="warning.dark" fontWeight="medium">
+                  Phí gia hạn chưa thanh toán: {formatPrice(unpaidAmount)}đ
+               </Typography>
+            </Box>
          )}
       </BaseBreadcrumbs>
    );

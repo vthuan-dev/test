@@ -850,7 +850,7 @@ export const getAllOrders = async (req, res) => {
 
     const [orders] = await orderModel.connection.promise().query(query);
 
-    // Cập nhật total_money nếu khác với calculated_total
+    // Cập nhật total_money n���u khác với calculated_total
     for (const order of orders) {
       if (order.total_money !== order.calculated_total) {
         await orderModel.connection.promise().query(
@@ -1153,6 +1153,7 @@ export const getExtendRequests = async (req, res) => {
         er.additional_hours,
         er.additional_price,
         er.created_at,
+        er.payment_status,
         rod.start_time,
         rod.end_time,
         r.room_name
@@ -1165,6 +1166,27 @@ export const getExtendRequests = async (req, res) => {
     return responseSuccess(res, {
       message: "Lấy danh sách yêu cầu gia hạn thành công",
       data: requests
+    });
+  } catch (error) {
+    return responseError(res, error);
+  }
+};
+
+export const updateExtendPaymentStatus = async (req, res) => {
+  const connection = await orderModel.connection.promise();
+  try {
+    const { request_id } = req.body;
+
+    await connection.query(`
+      UPDATE extend_room_requests 
+      SET 
+        payment_status = 'PAID',
+        updated_at = NOW()
+      WHERE id = ?
+    `, [request_id]);
+
+    return responseSuccess(res, {
+      message: "Đã cập nhật trạng thái thanh toán"
     });
   } catch (error) {
     return responseError(res, error);
