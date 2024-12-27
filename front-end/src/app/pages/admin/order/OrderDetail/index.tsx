@@ -154,8 +154,8 @@ const OrderDetail = () => {
       queryKey: ['available-rooms', selectedRoom?.start_time, selectedRoom?.end_time],
       queryFn: () => getRequest('/order-room-detail/available-rooms', {
          params: {
-            startTime: selectedRoom?.start_time,
-            endTime: selectedRoom?.end_time
+            startTime: dayjs(selectedRoom?.start_time).utc().format('YYYY-MM-DD HH:mm:ss'),
+            endTime: dayjs(selectedRoom?.end_time).utc().format('YYYY-MM-DD HH:mm:ss')
          }
       }),
       enabled: changeRoomOpen && !!selectedRoom,
@@ -168,13 +168,15 @@ const OrderDetail = () => {
       onSuccess: () => {
          toast.success('Đổi phòng thành công');
          setChangeRoomOpen(false);
+         setSelectedRoom(null);
+         setNewRoomId('');
          queryClient.invalidateQueries(['order', id]);
          queryClient.invalidateQueries(['available-rooms']);
          refetch();
       },
       onError: (error: any) => {
-         console.error('Change room error:', error);
-         toast.error(error?.response?.data?.message || 'Đổi phòng thất bại');
+         console.error('Change room error:', error?.response?.data || error);
+         toast.error(error?.response?.data?.message || 'Đổi phòng thất bại. Vui lòng thử lại');
       },
    });
 
@@ -209,24 +211,31 @@ const OrderDetail = () => {
       const oldRoomId = Number(selectedRoom.room_id);
       const newRoomIdNum = Number(newRoomId);
 
-      // Kiểm tra tính hợp lệ của dữ liệu
-      if (isNaN(orderId) || isNaN(orderDetailId) || isNaN(oldRoomId) || isNaN(newRoomIdNum)) {
-         console.error('Invalid data:', { orderId, orderDetailId, oldRoomId, newRoomIdNum });
-         toast.error('Dữ liệu không hợp lệ');
-         return;
-      }
+      // Convert local time to UTC before sending
+      const startTime = dayjs(selectedRoom.start_time).utc().format('YYYY-MM-DD HH:mm:ss');
+      const endTime = dayjs(selectedRoom.end_time).utc().format('YYYY-MM-DD HH:mm:ss');
 
-      // Format thời gian theo định dạng YYYY-MM-DD HH:mm:ss
-      const changeRoomData: ChangeRoomRequest = {
+      console.log('Time conversion:', {
+         original: {
+            start: selectedRoom.start_time,
+            end: selectedRoom.end_time
+         },
+         converted: {
+            start: startTime,
+            end: endTime
+         }
+      });
+
+      const changeRoomData = {
          orderId,
          orderDetailId,
          oldRoomId,
          newRoomId: newRoomIdNum,
-         startTime: dayjs(selectedRoom.start_time).format('YYYY-MM-DD HH:mm:ss'),
-         endTime: dayjs(selectedRoom.end_time).format('YYYY-MM-DD HH:mm:ss')
+         startTime,
+         endTime
       };
 
-      console.log('Final change room request:', changeRoomData);
+      console.log('Change room request data:', changeRoomData);
       mutateChangeRoom(changeRoomData);
    };
 
@@ -305,57 +314,61 @@ const OrderDetail = () => {
                      }
                   }}
                >
-                  {availableRooms?.data?.map((room: any) => (
-                     <MenuItem 
-                        key={room.room_id}
-                        value={room.room_id}
-                        disabled={room.status === 'Có người đặt' || room.room_id === selectedRoom?.room_id}
-                        sx={{
-                           py: 1.5,
-                           px: 2,
-                           borderRadius: 1,
-                           mb: 0.5,
-                           '&:hover': {
-                              bgcolor: 'primary.lighter'
-                           },
-                           '&.Mui-disabled': {
-                              opacity: 0.7,
-                              bgcolor: 'grey.100'
-                           }
-                        }}
-                     >
-                        <Box sx={{ width: '100%' }}>
-                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                              <Typography variant="body2" fontWeight={500}>
-                                 {room.name}
-                              </Typography>
-                              <Typography 
-                                 variant="body2" 
-                                 color="primary.main"
-                                 fontWeight={500}
-                              >
-                                 {Number(room.price).toLocaleString()}đ/giờ
-                              </Typography>
+                  {availableRooms?.data?.map((room: any) => {
+                     const hasConflict = room.conflicts && room.conflicts.length > 0;
+                     
+                     return (
+                        <MenuItem 
+                           key={room.room_id}
+                           value={room.room_id}
+                           disabled={hasConflict || room.room_id === selectedRoom?.room_id}
+                           sx={{
+                              py: 1.5,
+                              px: 2,
+                              borderRadius: 1,
+                              mb: 0.5,
+                              '&:hover': {
+                                 bgcolor: 'primary.lighter'
+                              },
+                              '&.Mui-disabled': {
+                                 opacity: 0.7,
+                                 bgcolor: 'grey.100'
+                              }
+                           }}
+                        >
+                           <Box sx={{ width: '100%' }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                                 <Typography variant="body2" fontWeight={500}>
+                                    {room.name}
+                                 </Typography>
+                                 <Typography 
+                                    variant="body2" 
+                                    color="primary.main"
+                                    fontWeight={500}
+                                 >
+                                    {Number(room.price).toLocaleString()}đ/giờ
+                                 </Typography>
+                              </Box>
+                              
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                 <FiberManualRecordIcon 
+                                    sx={{ 
+                                       mr: 0.5, 
+                                       fontSize: 12,
+                                       color: hasConflict ? 'error.main' : 'success.main'
+                                    }} 
+                                 />
+                                 <Typography 
+                                    variant="caption"
+                                    color={hasConflict ? 'error.main' : 'success.main'}
+                                 >
+                                    {hasConflict ? 'Đã có người đặt' : 'Trống'}
+                                 </Typography>
+                              </Box>
                            </Box>
-                           
-                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <FiberManualRecordIcon 
-                                 sx={{ 
-                                    mr: 0.5, 
-                                    fontSize: 12,
-                                    color: room.status === 'Trống' ? 'success.main' : 'error.main'
-                                 }} 
-                              />
-                              <Typography 
-                                 variant="caption"
-                                 color={room.status === 'Trống' ? 'success.main' : 'error.main'}
-                              >
-                                 {room.status}
-                              </Typography>
-                           </Box>
-                        </Box>
-                     </MenuItem>
-                  ))}
+                        </MenuItem>
+                     );
+                  })}
                </TextField>
             </Box>
          </DialogContent>
