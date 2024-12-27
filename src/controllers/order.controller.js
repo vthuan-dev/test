@@ -179,125 +179,122 @@ export const getDetailById = async (req, res) => {
 export const getDetailByUserId = async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const [orders] = await orderModel.connection.promise().query(`
+    const connection = await orderModel.connection.promise();
+
+    // Query lấy thông tin đơn hàng và sản phẩm
+    const [results] = await connection.query(`
       SELECT 
-        o.id,
-        o.order_date,
-        o.status as order_status,
-        o.total_money,
-        o.payment_method,
-        o.payment_status,
-        o.description as order_description,
-        
-        -- Order Details (Products)
-        od.id as detail_id,
-        od.quantity,
-        od.price as product_price,
+        o.*,
+        u.username, u.email, u.phone, u.is_vip,
+        od.id as order_detail_id,
+        od.quantity as order_quantity,
+        od.price as order_detail_price,
+        p.id as product_id,
         p.product_name,
         p.image_url as product_image,
         p.description as product_description,
         c.category_name,
-        
-        -- Room Order Details
-        rod.id as room_detail_id,
-        rod.room_id,
-        r.room_name,
-        r.image_url as room_image,
-        r.status as room_status,
-        r.position as room_position,
-        r.description as room_description,
-        rod.start_time,
-        rod.end_time,
-        rod.total_time,
-        rod.total_price as room_total_price
-        
+        r.id as room_order_detail_id,
+        r.room_id,
+        rm.room_name,
+        rm.image as room_image,
+        rm.status as room_status,
+        rm.position as room_position,
+        r.start_time,
+        r.end_time,
+        r.total_time,
+        r.total_price as room_total_price
       FROM orders o
+      LEFT JOIN user u ON o.user_id = u.id
       LEFT JOIN order_detail od ON o.id = od.order_id
       LEFT JOIN product p ON od.product_id = p.id
       LEFT JOIN category c ON p.category_id = c.id
-      LEFT JOIN room_order_detail rod ON o.id = rod.order_id
-      LEFT JOIN room r ON rod.room_id = r.id
+      LEFT JOIN order_room r ON o.id = r.order_id
+      LEFT JOIN room rm ON r.room_id = rm.id
       WHERE o.user_id = ?
-      ORDER BY o.order_date DESC
+      ORDER BY o.created_at DESC
     `, [id]);
 
-    // Format lại dữ liệu để phù hợp với frontend
-    const formattedOrders = orders.reduce((acc, curr) => {
-      const orderIndex = acc.findIndex(o => o.id === curr.id);
+    // Format lại response
+    const orders = results.reduce((acc, row) => {
+      const orderIndex = acc.findIndex(o => o.id === row.id);
       
       if (orderIndex === -1) {
         // Tạo order mới
         const newOrder = {
-          id: curr.id,
-          order_date: curr.order_date,
-          order_status: curr.order_status,
-          total_money: curr.total_money,
-          payment_method: curr.payment_method,
-          payment_status: curr.payment_status,
-          description: curr.order_description,
+          id: row.id,
+          order_date: row.order_date,
+          order_status: row.status,
+          total_money: row.total_money,
+          payment_method: row.payment_method,
+          payment_status: row.payment_status,
+          description: row.description,
           order_details: [],
           room_order_details: []
         };
 
         // Thêm product detail nếu có
-        if (curr.detail_id) {
+        if (row.order_detail_id) {
           newOrder.order_details.push({
-            id: curr.detail_id,
-            product_name: curr.product_name,
-            product_image: curr.product_image,
-            product_description: curr.product_description,
-            category: curr.category_name,
-            quantity: curr.quantity,
-            price: curr.product_price
+            id: row.order_detail_id,
+            product_id: row.product_id,
+            product_name: row.product_name,
+            product_image: row.product_image,
+            description: row.product_description,
+            category: row.category_name,
+            quantity: row.order_quantity,
+            price: row.order_detail_price,
+            total_price: row.order_quantity * row.order_detail_price
           });
         }
 
         // Thêm room detail nếu có
-        if (curr.room_detail_id) {
+        if (row.room_order_detail_id) {
           newOrder.room_order_details.push({
-            id: curr.room_detail_id,
-            room_id: curr.room_id,
-            room_name: curr.room_name,
-            room_image: curr.room_image,
-            room_status: curr.room_status,
-            room_position: curr.room_position,
-            room_description: curr.room_description,
-            start_time: curr.start_time,
-            end_time: curr.end_time,
-            total_time: curr.total_time,
-            total_price: curr.room_total_price
+            id: row.room_order_detail_id,
+            room_id: row.room_id,
+            room_name: row.room_name,
+            room_image: row.room_image,
+            room_status: row.room_status,
+            room_position: row.room_position,
+            room_description: row.room_description,
+            start_time: row.start_time,
+            end_time: row.end_time,
+            total_time: row.total_time,
+            total_price: row.room_total_price
           });
         }
 
         acc.push(newOrder);
       } else {
         // Order đã tồn tại, thêm details nếu chưa có
-        if (curr.detail_id && !acc[orderIndex].order_details.find(d => d.id === curr.detail_id)) {
+        if (row.order_detail_id && !acc[orderIndex].order_details.find(d => d.id === row.order_detail_id)) {
           acc[orderIndex].order_details.push({
-            id: curr.detail_id,
-            product_name: curr.product_name,
-            product_image: curr.product_image,
-            product_description: curr.product_description,
-            category: curr.category_name,
-            quantity: curr.quantity,
-            price: curr.product_price
+            id: row.order_detail_id,
+            product_id: row.product_id,
+            product_name: row.product_name,
+            product_image: row.product_image,
+            description: row.product_description,
+            category: row.category_name,
+            quantity: row.order_quantity,
+            price: row.order_detail_price,
+            total_price: row.order_quantity * row.order_detail_price
           });
         }
 
-        if (curr.room_detail_id && !acc[orderIndex].room_order_details.find(d => d.id === curr.room_detail_id)) {
+        if (row.room_order_detail_id && !acc[orderIndex].room_order_details.find(d => d.id === row.room_order_detail_id)) {
           acc[orderIndex].room_order_details.push({
-            id: curr.room_detail_id,
-            room_id: curr.room_id,
-            room_name: curr.room_name,
-            room_image: curr.room_image,
-            room_status: curr.room_status,
-            room_position: curr.room_position,
-            room_description: curr.room_description,
-            start_time: curr.start_time,
-            end_time: curr.end_time,
-            total_time: curr.total_time,
-            total_price: curr.room_total_price
+            id: row.room_order_detail_id,
+            room_id: row.room_id,
+            room_name: row.room_name,
+            room_image: row.room_image,
+            room_status: row.room_status,
+            room_position: row.room_position,
+            room_description: row.room_description,
+            start_time: row.start_time,
+            end_time: row.end_time,
+            total_time: row.total_time,
+            total_price: row.room_total_price
           });
         }
       }
@@ -307,11 +304,11 @@ export const getDetailByUserId = async (req, res) => {
 
     return responseSuccess(res, {
       message: "Lấy danh sách đơn hàng thành công",
-      data: formattedOrders
+      data: orders
     });
 
   } catch (error) {
-    console.error("Get order by user id error:", error);
+    console.error("Get orders error:", error);
     return responseError(res, error);
   }
 };

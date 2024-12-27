@@ -225,6 +225,50 @@ const HistoryCart = () => {
                            </Card>
                         </Grid>
                      ))}
+
+                     {/* Chi tiết sản phẩm */}
+                     {selectedOrder?.order_details && selectedOrder.order_details.length > 0 && (
+                        <Grid item xs={12}>
+                           <Typography variant="h6" sx={{ mb: 2 }}>Chi tiết sản phẩm</Typography>
+                           <TableContainer component={Paper}>
+                              <Table>
+                                 <TableHead>
+                                    <TableRow>
+                                       <TableCell>Sản phẩm</TableCell>
+                                       <TableCell>Danh mục</TableCell>
+                                       <TableCell align="center">Số lượng</TableCell>
+                                       <TableCell align="right">Đơn giá</TableCell>
+                                       <TableCell align="right">Thành tiền</TableCell>
+                                    </TableRow>
+                                 </TableHead>
+                                 <TableBody>
+                                    {selectedOrder.order_details.map((product) => (
+                                       <TableRow key={product.id}>
+                                          <TableCell>
+                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                                <Box
+                                                   component="img"
+                                                   src={product.product_image}
+                                                   sx={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 1 }}
+                                                />
+                                                <Typography>{product.product_name}</Typography>
+                                             </Box>
+                                          </TableCell>
+                                          <TableCell>{product.category}</TableCell>
+                                          <TableCell align="center">{product.quantity}</TableCell>
+                                          <TableCell align="right">
+                                             {product.price.toLocaleString('vi-VN')}đ
+                                          </TableCell>
+                                          <TableCell align="right">
+                                             {(product.quantity * product.price).toLocaleString('vi-VN')}đ
+                                          </TableCell>
+                                       </TableRow>
+                                    ))}
+                                 </TableBody>
+                              </Table>
+                           </TableContainer>
+                        </Grid>
+                     )}
                   </Grid>
 
                   <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
