@@ -51,9 +51,23 @@ import { type ResponseGet } from '~/app/types/response';
 interface ExtendRequest {
    id: number;
    room_order_id: number;
-   request_status: 'PENDING' | 'APPROVED' | 'REJECTED';
+   order_id: number;
    additional_hours: number;
    additional_price: number;
+   request_status: 'PENDING' | 'APPROVED' | 'REJECTED';
+   created_at: string;
+}
+
+interface RoomOrderDetail {
+   id: number;
+   room_id: number;
+   room_name: string;
+   room_image: string;
+   start_time: string;
+   end_time: string;
+   total_time: number;
+   total_price: number;
+   extend_request?: ExtendRequest;
 }
 
 interface OrderData {
@@ -69,17 +83,7 @@ interface OrderData {
       quantity: number;
       price: number;
    }>;
-   room_order_details?: Array<{
-      id: number;
-      room_id: number;
-      room_name: string;
-      room_image: string;
-      start_time: string;
-      end_time: string;
-      total_time: number;
-      total_price: number;
-      extend_request?: ExtendRequest;
-   }>;
+   room_order_details?: Array<RoomOrderDetail>;
 }
 
 const styles = {
@@ -115,6 +119,7 @@ const HistoryCart = () => {
    const [extendRoomId, setExtendRoomId] = useState<number | null>(null);
    const [additionalHours, setAdditionalHours] = useState(1);
    const [selectedOrderForExtend, setSelectedOrderForExtend] = useState<number | null>(null);
+   const [openExtendDialog, setOpenExtendDialog] = useState(false);
    const queryClient = useQueryClient();
 
    const { data: orders } = useQuery<ResponseGet<OrderData[]>>({
@@ -161,13 +166,14 @@ const HistoryCart = () => {
    const extendTimeMutation = useMutation({
       mutationFn: (data: { order_id: number; room_order_id: number; additional_hours: number }) =>
          postRequest('/order/extend-room-time', data),
-      onSuccess: (response) => {
+      onSuccess: () => {
          handleCloseExtendModal();
-         toast.success('Yêu cầu gia hạn đã được gửi, vui lòng đợi admin phê duyệt');
+         queryClient.invalidateQueries(['admin-order-user-id']);
+         queryClient.invalidateQueries(['extend-requests']);
+         toast.success('Yêu cầu gia hạn đã được gửi');
       },
       onError: (error: any) => {
-         const errorMessage = error?.response?.data?.message || 'Có lỗi xảy ra khi gửi yêu cầu gia hạn';
-         toast.error(errorMessage);
+         toast.error(error?.response?.data?.message || 'Có lỗi xảy ra');
       }
    });
 
@@ -182,22 +188,14 @@ const HistoryCart = () => {
    };
 
    const handleExtendTime = (roomOrderId: number, orderId: number) => {
-      console.log("Extending time for:", { roomOrderId, orderId });
       setExtendRoomId(roomOrderId);
       setSelectedOrderForExtend(orderId);
+      setOpenExtendDialog(true);
    };
 
    const handleConfirmExtend = () => {
-      if (!extendRoomId || !selectedOrderForExtend) {
-         toast.error('Thiếu thông tin cần thiết để gia hạn');
-         return;
-      }
-
-      if (additionalHours <= 0 || additionalHours > 24) {
-         toast.error('Số giờ gia hạn không hợp lệ');
-         return;
-      }
-
+      if (!extendRoomId || !selectedOrderForExtend) return;
+      
       extendTimeMutation.mutate({
          order_id: selectedOrderForExtend,
          room_order_id: extendRoomId,
@@ -209,9 +207,10 @@ const HistoryCart = () => {
       setExtendRoomId(null);
       setSelectedOrderForExtend(null);
       setAdditionalHours(1);
+      setOpenExtendDialog(false);
    };
 
-   const RenderRoomActions = ({ room, order }) => {
+   const RenderRoomActions = ({ room, orderId, onExtendTime }) => {
       const isPastEndTime = new Date(room.end_time) < new Date();
       const hasExtendRequest = room.extend_request;
 
@@ -242,12 +241,9 @@ const HistoryCart = () => {
                         variant="outlined"
                         color="primary"
                         size="small"
-                        onClick={() => handleExtendTime(room.id, order.id)}
+                        onClick={() => onExtendTime(room.id, orderId)}
                         startIcon={<UpdateIcon />}
-                        sx={{ 
-                           animation: 'highlight 2s infinite',
-                           ml: 1 
-                        }}
+                        sx={{ animation: 'highlight 2s infinite', ml: 1 }}
                      >
                         Gia hạn tiếp
                      </Button>
@@ -265,15 +261,13 @@ const HistoryCart = () => {
                         variant="contained"
                         color="primary"
                         size="small"
-                        onClick={() => handleExtendTime(room.id, order.id)}
+                        onClick={() => onExtendTime(room.id, orderId)}
                         startIcon={<UpdateIcon />}
                      >
                         Thử lại
                      </Button>
                   </Box>
                );
-            default:
-               return null;
          }
       }
 
@@ -282,7 +276,7 @@ const HistoryCart = () => {
             variant="contained"
             color="primary"
             size="small"
-            onClick={() => handleExtendTime(room.id, order.id)}
+            onClick={() => onExtendTime(room.id, orderId)}
             startIcon={<UpdateIcon />}
          >
             Gia hạn
@@ -304,7 +298,7 @@ const HistoryCart = () => {
             fontWeight: 'bold', 
             color: 'primary.main' 
          }}>
-            Lịch sử ��ặt hàng
+            Lịch sử đặt hàng
          </Typography>
 
          {/* Tabs Filter */}
@@ -461,7 +455,7 @@ const HistoryCart = () => {
                   justifyContent: 'space-between'
                }}>
                   <Typography variant="h6">
-                     Chi tiết đơn hàng #{selectedOrder?.id}
+                     Chi tiết đơn h��ng #{selectedOrder?.id}
                   </Typography>
                   <IconButton onClick={handleCloseModal} sx={{ color: 'white' }}>
                      <CloseIcon />
@@ -526,7 +520,7 @@ const HistoryCart = () => {
                                        <TableCell>{new Date(room.start_time).toLocaleString('vi-VN')}</TableCell>
                                        <TableCell>{new Date(room.end_time).toLocaleString('vi-VN')}</TableCell>
                                        <TableCell>
-                                          <RenderRoomActions room={room} order={selectedOrder} />
+                                          <RenderRoomActions room={room} orderId={selectedOrder.id} onExtendTime={handleExtendTime} />
                                        </TableCell>
                                     </TableRow>
                                  ))}
@@ -586,7 +580,7 @@ const HistoryCart = () => {
          </Modal>
 
          {/* Modal gia hạn thời gian */}
-         <Dialog open={!!extendRoomId} onClose={handleCloseExtendModal}>
+         <Dialog open={openExtendDialog} onClose={handleCloseExtendModal}>
             <DialogTitle>Gia hạn thời gian</DialogTitle>
             <DialogContent>
                <DialogContentText>
