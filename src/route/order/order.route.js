@@ -21,8 +21,9 @@ router.get("/get-one-order-by-user-id/:id", orderController.getUserOrders);
 
 router.post("/get-order-room-timeline", getTimeLineOrderRoom);
 
+router.post("/extend-room-time", orderController.extendRoomTime);
+
 // router.get("/detail/:id", orderController.getDetailById);
 // router.get("/get-one-order-by-user-id/:id", orderController.getOrderByUserId);
-
 
 export default router;

@@ -17,8 +17,14 @@ import {
    IconButton,
    Tabs,
    Tab,
+   Dialog,
+   DialogTitle,
+   DialogContent,
+   DialogContentText,
+   TextField,
+   DialogActions,
 } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
@@ -27,6 +33,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
+import { toast } from 'react-toastify';
 
 import {
    getNextStatus,
@@ -34,7 +41,7 @@ import {
    statusButtonColors,
    type OrderStatusKey,
 } from '@pages/admin/order/OrderDetail';
-import { getRequest } from '~/app/configs';
+import { getRequest, postRequest } from '~/app/configs';
 import useAuth from '~/app/redux/slices/auth.slice';
 import { type ResponseGet } from '~/app/types/response';
 
@@ -47,12 +54,14 @@ interface OrderData {
    order_details?: Array<{
       id: number;
       product_name: string;
+      product_image: string;
       quantity: number;
       price: number;
    }>;
    room_order_details?: Array<{
       id: number;
       room_name: string;
+      room_image: string;
       start_time: string;
       end_time: string;
    }>;
@@ -63,10 +72,27 @@ const HistoryCart = () => {
    const [openModal, setOpenModal] = useState(false);
    const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
    const [currentTab, setCurrentTab] = useState('all');
+   const [extendRoomId, setExtendRoomId] = useState<number | null>(null);
+   const [additionalHours, setAdditionalHours] = useState(1);
+   const [selectedOrderForExtend, setSelectedOrderForExtend] = useState<number | null>(null);
+   const queryClient = useQueryClient();
 
    const { data: orders } = useQuery<ResponseGet<OrderData[]>>({
       queryKey: ['admin-order-user-id'],
       queryFn: () => getRequest(`/order/get-one-order-by-user-id/${user?.id}`),
+   });
+
+   const extendTimeMutation = useMutation({
+      mutationFn: (data: { order_id: number; room_order_id: number; additional_hours: number }) =>
+         postRequest('/order/extend-room-time', data),
+      onSuccess: () => {
+         queryClient.invalidateQueries(['admin-order-user-id']);
+         handleCloseExtendModal();
+         toast.success('Gia hạn thời gian thành công');
+      },
+      onError: (error: any) => {
+         toast.error(error?.message || 'Có lỗi xảy ra khi gia hạn');
+      }
    });
 
    const handleOpenModal = (order: OrderData) => {
@@ -77,6 +103,27 @@ const HistoryCart = () => {
    const handleCloseModal = () => {
       setOpenModal(false);
       setSelectedOrder(null);
+   };
+
+   const handleExtendTime = (roomOrderId: number, orderId: number) => {
+      setExtendRoomId(roomOrderId);
+      setSelectedOrderForExtend(orderId);
+   };
+
+   const handleConfirmExtend = () => {
+      if (!extendRoomId || !selectedOrderForExtend) return;
+
+      extendTimeMutation.mutate({
+         order_id: selectedOrderForExtend,
+         room_order_id: extendRoomId,
+         additional_hours: additionalHours
+      });
+   };
+
+   const handleCloseExtendModal = () => {
+      setExtendRoomId(null);
+      setSelectedOrderForExtend(null);
+      setAdditionalHours(1);
    };
 
    const filteredOrders = orders?.data?.filter(order => {
@@ -307,14 +354,41 @@ const HistoryCart = () => {
                                     <TableCell>Tên phòng</TableCell>
                                     <TableCell>Thời gian bắt đầu</TableCell>
                                     <TableCell>Thời gian kết thúc</TableCell>
+                                    <TableCell>Hành động</TableCell>
                                  </TableRow>
                               </TableHead>
                               <TableBody>
                                  {selectedOrder.room_order_details.map((room) => (
                                     <TableRow key={room.id}>
-                                       <TableCell>{room.room_name}</TableCell>
+                                       <TableCell>
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                             <img 
+                                                src={room.room_image}
+                                                alt={room.room_name}
+                                                style={{ 
+                                                   width: 50, 
+                                                   height: 50, 
+                                                   objectFit: 'cover',
+                                                   borderRadius: '4px',
+                                                   display: 'block'
+                                                }}
+                                             />
+                                             {room.room_name}
+                                          </Box>
+                                       </TableCell>
                                        <TableCell>{new Date(room.start_time).toLocaleString('vi-VN')}</TableCell>
                                        <TableCell>{new Date(room.end_time).toLocaleString('vi-VN')}</TableCell>
+                                       <TableCell>
+                                          <Button
+                                             variant="contained"
+                                             color="primary"
+                                             size="small"
+                                             onClick={() => handleExtendTime(room.id, selectedOrder!.id)}
+                                             disabled={new Date(room.end_time) < new Date()}
+                                          >
+                                             Gia hạn
+                                          </Button>
+                                       </TableCell>
                                     </TableRow>
                                  ))}
                               </TableBody>
@@ -340,7 +414,22 @@ const HistoryCart = () => {
                               <TableBody>
                                  {selectedOrder.order_details.map((product) => (
                                     <TableRow key={product.id}>
-                                       <TableCell>{product.product_name}</TableCell>
+                                       <TableCell>
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                             <img 
+                                                src={product.product_image}
+                                                alt={product.product_name}
+                                                style={{ 
+                                                   width: 50, 
+                                                   height: 50, 
+                                                   objectFit: 'cover',
+                                                   borderRadius: '4px',
+                                                   display: 'block'
+                                                }}
+                                             />
+                                             {product.product_name}
+                                          </Box>
+                                       </TableCell>
                                        <TableCell align="center">{product.quantity}</TableCell>
                                        <TableCell align="right">{product.price.toLocaleString('vi-VN')}đ</TableCell>
                                        <TableCell align="right">
@@ -356,6 +445,34 @@ const HistoryCart = () => {
                </Box>
             </Box>
          </Modal>
+
+         {/* Modal gia hạn thời gian */}
+         <Dialog open={!!extendRoomId} onClose={handleCloseExtendModal}>
+            <DialogTitle>Gia hạn thời gian</DialogTitle>
+            <DialogContent>
+               <DialogContentText>
+                  Chọn số giờ muốn gia hạn thêm:
+               </DialogContentText>
+               <TextField
+                  type="number"
+                  value={additionalHours}
+                  onChange={(e) => setAdditionalHours(Number(e.target.value))}
+                  inputProps={{ min: 1, max: 24 }}
+                  fullWidth
+                  margin="dense"
+               />
+            </DialogContent>
+            <DialogActions>
+               <Button onClick={handleCloseExtendModal}>Hủy</Button>
+               <Button 
+                  onClick={handleConfirmExtend}
+                  variant="contained"
+                  disabled={extendTimeMutation.isPending}
+               >
+                  Xác nhận
+               </Button>
+            </DialogActions>
+         </Dialog>
       </Box>
    );
 };

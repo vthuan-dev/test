@@ -191,13 +191,13 @@ export const getDetailByUserId = async (req, res) => {
         od.price as order_detail_price,
         p.id as product_id,
         p.product_name,
-        p.image_url as product_image,
+        p.image_url as product_image_url,
         p.description as product_description,
         c.category_name,
         r.id as room_order_detail_id,
         r.room_id,
         rm.room_name,
-        rm.image as room_image,
+        rm.image_url as room_image_url,
         rm.status as room_status,
         rm.position as room_position,
         r.start_time,
@@ -209,7 +209,7 @@ export const getDetailByUserId = async (req, res) => {
       LEFT JOIN order_detail od ON o.id = od.order_id
       LEFT JOIN product p ON od.product_id = p.id
       LEFT JOIN category c ON p.category_id = c.id
-      LEFT JOIN order_room r ON o.id = r.order_id
+      LEFT JOIN room_order_detail r ON o.id = r.order_id
       LEFT JOIN room rm ON r.room_id = rm.id
       WHERE o.user_id = ?
       ORDER BY o.created_at DESC
@@ -239,12 +239,11 @@ export const getDetailByUserId = async (req, res) => {
             id: row.order_detail_id,
             product_id: row.product_id,
             product_name: row.product_name,
-            product_image: row.product_image,
+            image_url: row.product_image_url,
             description: row.product_description,
             category: row.category_name,
             quantity: row.order_quantity,
-            price: row.order_detail_price,
-            total_price: row.order_quantity * row.order_detail_price
+            price: row.order_detail_price
           });
         }
 
@@ -254,7 +253,7 @@ export const getDetailByUserId = async (req, res) => {
             id: row.room_order_detail_id,
             room_id: row.room_id,
             room_name: row.room_name,
-            room_image: row.room_image,
+            image_url: row.room_image_url,
             room_status: row.room_status,
             room_position: row.room_position,
             room_description: row.room_description,
@@ -273,12 +272,11 @@ export const getDetailByUserId = async (req, res) => {
             id: row.order_detail_id,
             product_id: row.product_id,
             product_name: row.product_name,
-            product_image: row.product_image,
+            image_url: row.product_image_url,
             description: row.product_description,
             category: row.category_name,
             quantity: row.order_quantity,
-            price: row.order_detail_price,
-            total_price: row.order_quantity * row.order_detail_price
+            price: row.order_detail_price
           });
         }
 
@@ -287,7 +285,7 @@ export const getDetailByUserId = async (req, res) => {
             id: row.room_order_detail_id,
             room_id: row.room_id,
             room_name: row.room_name,
-            room_image: row.room_image,
+            image_url: row.room_image_url,
             room_status: row.room_status,
             room_position: row.room_position,
             room_description: row.room_description,
@@ -781,6 +779,110 @@ export const getAllOrders = async (req, res) => {
 
   } catch (error) {
     console.error("Get all orders error:", error);
+    return responseError(res, error);
+  }
+};
+
+export const extendRoomTime = async (req, res) => {
+  try {
+    const { order_id, room_order_id, additional_hours } = req.body;
+    const connection = await orderModel.connection.promise();
+
+    // Debug log
+    console.log("Request data:", { order_id, room_order_id, additional_hours });
+
+    // 1. Kiểm tra và lấy thông tin chi tiết phòng đã đặt
+    const [roomOrderDetails] = await connection.query(`
+      SELECT 
+        rod.*,
+        r.price as price_per_hour,
+        r.status as room_status,
+        o.total_money as order_total
+      FROM room_order_detail rod
+      JOIN room r ON rod.room_id = r.id
+      JOIN orders o ON rod.order_id = o.id
+      WHERE rod.id = ? AND rod.order_id = ?
+    `, [room_order_id, order_id]);
+
+    console.log("Room order details:", roomOrderDetails);
+
+    if (!roomOrderDetails || roomOrderDetails.length === 0) {
+      return responseError(res, { 
+        message: "Không tìm thấy thông tin đặt phòng",
+        debug: {
+          requestData: { order_id, room_order_id, additional_hours },
+          queryResult: roomOrderDetails
+        }
+      });
+    }
+
+    const roomOrder = roomOrderDetails[0];
+
+    // 2. Kiểm tra trạng thái phòng
+    if (roomOrder.room_status === 'MAINTENANCE') {
+      return responseError(res, { 
+        message: "Phòng đang trong trạng thái bảo trì, không thể gia hạn" 
+      });
+    }
+
+    // 3. Kiểm tra thời gian kết thúc
+    const currentTime = new Date();
+    const endTime = new Date(roomOrder.end_time);
+    if (endTime < currentTime) {
+      return responseError(res, { 
+        message: "Không thể gia hạn phòng đã hết thời gian sử dụng" 
+      });
+    }
+
+    // 4. Tính toán thời gian và chi phí mới
+    const additionalTime = additional_hours * 60 * 60 * 1000; // Chuyển giờ sang milliseconds
+    const newEndTime = new Date(endTime.getTime() + additionalTime);
+    const additionalPrice = additional_hours * roomOrder.price_per_hour;
+    const newTotalTime = roomOrder.total_time + (additional_hours * 60); // Thêm số phút
+    const newTotalMoney = roomOrder.order_total + additionalPrice;
+
+    // 5. Bắt đầu transaction
+    await connection.beginTransaction();
+
+    try {
+      // Cập nhật room_order_detail
+      await connection.query(`
+        UPDATE room_order_detail 
+        SET end_time = ?,
+            total_time = ?,
+            total_price = total_price + ?
+        WHERE id = ?
+      `, [newEndTime, newTotalTime, additionalPrice, room_order_id]);
+
+      // Cập nhật tổng tiền trong orders
+      await connection.query(`
+        UPDATE orders 
+        SET total_money = ?,
+            payment_status = ?
+        WHERE id = ?
+      `, [newTotalMoney, 0, order_id]); // Set payment_status = 0 (chưa thanh toán)
+
+      await connection.commit();
+
+      const response = {
+        message: "Gia hạn thời gian thành công",
+        data: {
+          new_end_time: newEndTime,
+          additional_price: additionalPrice,
+          new_total: newTotalMoney,
+          new_total_time: newTotalTime
+        }
+      };
+
+      return responseSuccess(res, response);
+
+    } catch (err) {
+      await connection.rollback();
+      throw err;
+    }
+
+  } catch (error) {
+    console.error("Error in extendRoomTime:", error);
     return responseError(res, error);
   }
 };

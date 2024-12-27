@@ -16,6 +16,7 @@ import {
    DialogContentText,
    DialogActions,
    Button,
+   Container,
 } from '@mui/material';
 import { Home, Edit, Lock, ExitToApp } from '@mui/icons-material';
 import { useState } from 'react';
@@ -40,22 +41,12 @@ const breadcrumbs = [
 const Profile = () => {
    const { user, authLogout } = useAuth();
    const [selectedView, setSelectedView] = useState<'overview' | 'editProfile' | 'changePassword' | 'cart'>('overview');
-
    const [openLogoutModal, setOpenLogoutModal] = useState(false);
 
-   // Function to handle logout modal open
-   const handleOpenLogoutModal = () => {
-      setOpenLogoutModal(true);
-   };
-
-   // Function to handle logout modal close
-   const handleCloseLogoutModal = () => {
-      setOpenLogoutModal(false);
-   };
-
-   // Function to confirm logout
+   const handleOpenLogoutModal = () => setOpenLogoutModal(true);
+   const handleCloseLogoutModal = () => setOpenLogoutModal(false);
    const handleConfirmLogout = () => {
-      authLogout(); // Call logout function
+      authLogout();
       setOpenLogoutModal(false);
    };
 
@@ -63,87 +54,160 @@ const Profile = () => {
       setSelectedView(view);
    };
 
+   const menuItems = [
+      { icon: <Home />, text: 'Tổng quan tài khoản', value: 'overview' },
+      { icon: <ShoppingCartIcon />, text: 'Lịch sử đặt hàng', value: 'cart' },
+      { icon: <Edit />, text: 'Chỉnh sửa hồ sơ', value: 'editProfile' },
+      { icon: <Lock />, text: 'Thay đổi mật khẩu', value: 'changePassword' },
+   ];
+
    return (
       <BaseBreadcrumbs arialabel="Tổng quan tài khoản" breadcrumbs={breadcrumbs}>
-         <Box>
-            <Grid container spacing={2}>
-               {/* Sidebar */}
-               <Grid item xs={12} md={4}>
-                  <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
-                     <Box display="flex" flexDirection="row" justifyContent="center" gap={2} alignItems="center">
-                        <Avatar sx={{ width: 56, height: 56 }}>L</Avatar>
-                        <Stack>
-                           <Typography variant="h6">{user?.username}</Typography>
-                           <Typography variant="body2" color="textSecondary">
+         <Container maxWidth="xl">
+            <Box sx={{ py: 3 }}>
+               <Grid container spacing={3}>
+                  {/* Sidebar */}
+                  <Grid item xs={12} md={3}>
+                     <Paper 
+                        elevation={0} 
+                        sx={{ 
+                           p: 3, 
+                           borderRadius: 2,
+                           bgcolor: 'background.paper',
+                           border: '1px solid',
+                           borderColor: 'divider'
+                        }}
+                     >
+                        <Box 
+                           sx={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              mb: 3,
+                              pb: 3,
+                              borderBottom: '1px solid',
+                              borderColor: 'divider'
+                           }}
+                        >
+                           <Avatar 
+                              sx={{ 
+                                 width: 80, 
+                                 height: 80, 
+                                 mb: 2,
+                                 bgcolor: 'primary.main',
+                                 fontSize: '2rem'
+                              }}
+                           >
+                              {user?.username?.charAt(0).toUpperCase()}
+                           </Avatar>
+                           <Typography variant="h6" sx={{ mb: 0.5 }}>
+                              {user?.username}
+                           </Typography>
+                           <Typography variant="body2" color="text.secondary">
                               {user?.email}
                            </Typography>
-                        </Stack>
-                     </Box>
-                     <List sx={{ mt: 2 }}>
-                        <ListItemButton onClick={() => handleViewChange('overview')}>
-                           <ListItemIcon>
-                              <Home color="primary" />
-                           </ListItemIcon>
-                           <ListItemText primary="Tổng quan tài khoản" />
-                        </ListItemButton>
-                        <ListItemButton onClick={() => handleViewChange('cart')}>
-                           <ListItemIcon>
-                              <ShoppingCartIcon color="primary" />
-                           </ListItemIcon>
-                           <ListItemText primary="Lịch sử đặt hàng" />
-                        </ListItemButton>
-                        <ListItemButton onClick={() => handleViewChange('editProfile')}>
-                           <ListItemIcon>
-                              <Edit color="primary" />
-                           </ListItemIcon>
-                           <ListItemText primary="Chỉnh sửa hồ sơ" />
-                        </ListItemButton>
-                        <ListItemButton onClick={() => handleViewChange('changePassword')}>
-                           <ListItemIcon>
-                              <Lock color="primary" />
-                           </ListItemIcon>
-                           <ListItemText primary="Thay đổi mật khẩu" />
-                        </ListItemButton>
-                        <ListItemButton onClick={handleOpenLogoutModal}>
-                           <ListItemIcon>
-                              <ExitToApp color="primary" />
-                           </ListItemIcon>
-                           <ListItemText primary="Thoát" />
-                        </ListItemButton>
-                     </List>
-                  </Paper>
-               </Grid>
+                        </Box>
 
-               {/* Profile Details / Edit Form */}
-               <Grid item xs={12} md={8}>
-                  <Paper elevation={1} sx={{ p: 3, bgcolor: '#fff', borderRadius: 2 }}>
-                     {selectedView === 'overview' && <ProfileDetail />}
-                     {selectedView === 'cart' && <HistoryCart />}
-                     {selectedView === 'editProfile' && <ProfileUpdateForm setSelectedView={setSelectedView} />}
-                     {selectedView === 'changePassword' && <ChangePasswordForm />}
-                  </Paper>
-               </Grid>
-            </Grid>
-         </Box>
+                        <List sx={{ px: 1 }}>
+                           {menuItems.map((item) => (
+                              <ListItemButton
+                                 key={item.value}
+                                 onClick={() => handleViewChange(item.value as any)}
+                                 selected={selectedView === item.value}
+                                 sx={{
+                                    borderRadius: 1,
+                                    mb: 0.5,
+                                    '&.Mui-selected': {
+                                       bgcolor: 'primary.light',
+                                       '&:hover': {
+                                          bgcolor: 'primary.light',
+                                       },
+                                    },
+                                 }}
+                              >
+                                 <ListItemIcon sx={{ minWidth: 40 }}>
+                                    {item.icon}
+                                 </ListItemIcon>
+                                 <ListItemText primary={item.text} />
+                              </ListItemButton>
+                           ))}
+                           
+                           <ListItemButton
+                              onClick={handleOpenLogoutModal}
+                              sx={{
+                                 borderRadius: 1,
+                                 color: 'error.main',
+                                 '&:hover': {
+                                    bgcolor: 'error.lighter',
+                                 },
+                              }}
+                           >
+                              <ListItemIcon sx={{ minWidth: 40, color: 'error.main' }}>
+                                 <ExitToApp />
+                              </ListItemIcon>
+                              <ListItemText primary="Đăng xuất" />
+                           </ListItemButton>
+                        </List>
+                     </Paper>
+                  </Grid>
 
-         {/* Logout Confirmation Modal */}
+                  {/* Main Content */}
+                  <Grid item xs={12} md={9}>
+                     <Paper 
+                        elevation={0} 
+                        sx={{ 
+                           p: 3, 
+                           borderRadius: 2,
+                           bgcolor: 'background.paper',
+                           border: '1px solid',
+                           borderColor: 'divider',
+                           minHeight: '600px'
+                        }}
+                     >
+                        {selectedView === 'overview' && <ProfileDetail />}
+                        {selectedView === 'cart' && <HistoryCart />}
+                        {selectedView === 'editProfile' && <ProfileUpdateForm setSelectedView={setSelectedView} />}
+                        {selectedView === 'changePassword' && <ChangePasswordForm />}
+                     </Paper>
+                  </Grid>
+               </Grid>
+            </Box>
+         </Container>
+
+         {/* Logout Dialog */}
          <Dialog
             open={openLogoutModal}
             onClose={handleCloseLogoutModal}
-            aria-labelledby="logout-dialog-title"
-            aria-describedby="logout-dialog-description"
+            PaperProps={{
+               sx: {
+                  borderRadius: 2,
+                  width: '100%',
+                  maxWidth: '400px'
+               }
+            }}
          >
-            <DialogTitle id="logout-dialog-title">Xác nhận đăng xuất</DialogTitle>
+            <DialogTitle sx={{ pb: 2 }}>
+               Xác nhận đăng xuất
+            </DialogTitle>
             <DialogContent>
-               <DialogContentText id="logout-dialog-description">
+               <DialogContentText>
                   Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?
                </DialogContentText>
             </DialogContent>
-            <DialogActions>
-               <Button onClick={handleCloseLogoutModal} color="error" variant="outlined">
+            <DialogActions sx={{ p: 2.5, pt: 1.5 }}>
+               <Button
+                  onClick={handleCloseLogoutModal}
+                  variant="outlined"
+                  color="inherit"
+               >
                   Hủy
                </Button>
-               <Button onClick={handleConfirmLogout} color="primary" variant="contained">
+               <Button
+                  onClick={handleConfirmLogout}
+                  variant="contained"
+                  color="error"
+                  autoFocus
+               >
                   Đăng xuất
                </Button>
             </DialogActions>
