@@ -33,7 +33,6 @@ const breadcrumbs = [
 const Order = () => {
    const { setParams, searchParams } = useSearchParamsHook();
 
-   // Cập nhật hàm query để xử lý đúng định dạng response
    const { data: orders, isLoading } = useQuery<ResponseGetList<OrderItem>>({
       queryKey: ['orders', searchParams.page],
       queryFn: async () => {
@@ -43,23 +42,13 @@ const Order = () => {
             isPagination: String(true),
          });
          const response = await getRequest(`/order?${queryParam}`);
-         // Đảm bảo trả về đúng cấu trúc dữ liệu
-         return {
-            data: response.data,
-            pagination: response.pagination,
-            message: response.message,
-            success: response.success
-         };
+         return response;
       },
-      enabled: true,
    });
 
-   // Thêm xử lý loading state
-   if (isLoading) {
-      return <Box>Loading...</Box>;
-   }
+   const currentPage = Number(searchParams.page ?? 1);
+   const totalPage = orders?.pagination?.totalPage ?? 1;
 
-   // Cập nhật logic sắp xếp để xử lý định dạng API response
    const sortedOrders = React.useMemo(() => {
       if (!orders?.data) return [];
       return [...orders.data].sort((a, b) => {
@@ -69,12 +58,7 @@ const Order = () => {
       });
    }, [orders?.data]);
 
-   // Default values for pagination
-   const currentPage = searchParams.page ?? 1;
-   const totalPage = orders?.pagination?.totalPage ?? 1;
-
-   // Cập nhật cell hiển thị trạng thái
-   const renderStatus = (status: OrderStatusKey) => {
+   const renderStatus = React.useCallback((status: OrderStatusKey) => {
       return (
          <Chip
             label={ORDER_STATUS_LABELS[status] || 'Không xác định'}
@@ -86,7 +70,11 @@ const Order = () => {
             }}
          />
       );
-   };
+   }, []);
+
+   if (isLoading) {
+      return <Box>Loading...</Box>;
+   }
 
    return (
       <BaseBreadcrumbs arialabel="Hóa đơn" breadcrumbs={breadcrumbs}>
