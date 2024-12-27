@@ -13,6 +13,7 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
 import { getNextStatus, ORDER_STATUS_LABELS, statusButtonColors, type OrderStatusKey } from './OrderDetail';
 
@@ -196,7 +197,24 @@ const Order = () => {
                                  >
                                     <TableCell align="center">{index + 1}</TableCell>
                                     <TableCell>{row.id}</TableCell>
-                                    <TableCell>{row.user_id}</TableCell>
+                                    <TableCell>
+                                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                          <AccountCircleIcon sx={{ color: 'rgba(255,255,255,0.5)' }} />
+                                          <Box>
+                                             <Typography variant="body2" sx={{ 
+                                                color: '#fff',
+                                                fontWeight: 500 
+                                             }}>
+                                                {row.username || 'Chưa cập nhật'}
+                                             </Typography>
+                                             {row.email && (
+                                                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                                                   {row.email}
+                                                </Typography>
+                                             )}
+                                          </Box>
+                                       </Box>
+                                    </TableCell>
                                     <TableCell>
                                        <Typography 
                                           sx={{ 

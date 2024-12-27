@@ -8,6 +8,29 @@ class OrderModel extends BaseModel {
     });
   }
 
+  read(query = {}, isPagination = false) {
+    return new Promise((resolve, reject) => {
+      const baseQuery = `
+        SELECT 
+          orders.*,
+          user.username,
+          user.phone,
+          user.email
+        FROM orders
+        LEFT JOIN user ON orders.user_id = user.id
+        ORDER BY orders.created_at DESC
+      `;
+      
+      this.connection.query(baseQuery, (error, result) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(result);
+        }
+      });
+    });
+  }
+
   getRoomOrderDetail(orderId) {
     return new Promise((resolve, reject) => {
       const query = `
