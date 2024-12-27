@@ -152,74 +152,44 @@ export const changeRoom = async (req, res) => {
       });
     }
 
-    // Validate thời gian
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    const now = new Date();
-
-    // Format date để so sánh ngày
-    const startDay = new Date(start).setHours(0,0,0,0);
-    const today = new Date(now).setHours(0,0,0,0);
-
-    // Chỉ kiểm tra nếu là cùng ngày
-    if (startDay === today && start < now) {
-      return responseError(res, {
-        message: "Không thể đổi phòng cho thời gian đã qua"
-      });
-    }
-
-    if (start >= end) {
-      return responseError(res, {
-        message: "Thời gian không hợp lệ"
-      });
-    }
-
     await connection.beginTransaction();
 
-    // 1. Kiểm tra xem chi tiết đặt phòng có tồn tại không
-    const [orderDetails] = await connection.query(
-      'SELECT * FROM room_order_detail WHERE id = ? AND order_id = ?',
-      [orderDetailId, orderId]
-    );
-
-    console.log("Found order details:", orderDetails);
-
-    if (!orderDetails.length) {
-      await connection.rollback();
-      return responseError(res, {
-        message: "Không tìm thấy chi tiết đặt phòng",
-        debug: { orderDetailId, orderId }
-      });
-    }
-
-    // 2. Kiểm tra conflicts
+    // 1. Kiểm tra xem phòng mới có bị đặt trong khoảng thời gian này không
     const [conflicts] = await connection.query(`
       SELECT * FROM room_order_detail 
       WHERE room_id = ? 
-      AND id != ?
-      AND order_id != ?
-      AND (
-        (start_time < ? AND end_time > ?)
-        OR (start_time < ? AND end_time > ?)
-        OR (start_time >= ? AND end_time <= ?)
-      )
+        AND id != ?
+        AND (
+          (start_time <= ? AND end_time >= ?)  -- Kiểm tra thời gian bắt đầu
+          OR (start_time <= ? AND end_time >= ?)  -- Kiểm tra thời gian kết thúc
+          OR (? <= start_time AND ? >= end_time)  -- Kiểm tra khoảng thời gian bao phủ
+        )
     `, [
       newRoomId,
       orderDetailId,
-      orderId,
-      endTime, startTime,
-      endTime, startTime,
-      startTime, endTime
+      startTime, startTime,     // Kiểm tra thời gian bắt đầu
+      endTime, endTime,         // Kiểm tra thời gian kết thúc
+      startTime, endTime        // Kiểm tra khoảng thời gian bao phủ
     ]);
+
+    // Debug log
+    console.log('Checking conflicts for:', {
+      newRoomId,
+      orderDetailId,
+      startTime,
+      endTime,
+      conflicts: conflicts.length > 0 ? conflicts : 'No conflicts'
+    });
 
     if (conflicts.length > 0) {
       await connection.rollback();
       return responseError(res, {
-        message: "Phòng đã có người đặt trong khoảng thời gian này"
+        message: "Phòng đã có người đặt trong khoảng thời gian này",
+        conflicts: conflicts
       });
     }
 
-    // 3. Lấy giá phòng mới
+    // 2. Lấy giá phòng mới
     const [rooms] = await connection.query(
       'SELECT price FROM room WHERE id = ?',
       [newRoomId]
@@ -232,21 +202,19 @@ export const changeRoom = async (req, res) => {
       });
     }
 
-    // 4. Tính toán tổng tiền mới
+    // 3. Tính toán tổng tiền mới
     const startDateTime = new Date(startTime);
     const endDateTime = new Date(endTime);
     const hours = Math.ceil((endDateTime - startDateTime) / (1000 * 60 * 60));
     const newTotalPrice = hours * rooms[0].price;
 
-    // 5. Cập nhật room_order_detail
+    // 4. Cập nhật room_order_detail
     const [updateResult] = await connection.query(`
       UPDATE room_order_detail 
       SET room_id = ?,
-          total_price = ?,
-          start_time = ?,
-          end_time = ?
+          total_price = ?
       WHERE id = ? AND order_id = ?
-    `, [newRoomId, newTotalPrice, startTime, endTime, orderDetailId, orderId]);
+    `, [newRoomId, newTotalPrice, orderDetailId, orderId]);
 
     if (updateResult.affectedRows === 0) {
       await connection.rollback();
@@ -255,7 +223,7 @@ export const changeRoom = async (req, res) => {
       });
     }
 
-    // 6. Cập nhật tổng tiền trong orders
+    // 5. Cập nhật tổng tiền trong orders
     await connection.query(`
       UPDATE orders o
       SET total_money = (
@@ -296,6 +264,7 @@ export const changeRoom = async (req, res) => {
 
 export const getAvailableRooms = async (req, res) => {
   try {
+    const { startTime, endTime } = req.query;
     const connection = await orderRoomModel.connection.promise();
     
     const [rooms] = await connection.query(`
@@ -305,36 +274,43 @@ export const getAvailableRooms = async (req, res) => {
         r.price,
         r.status as room_status,
         CASE 
-            WHEN r.status = 'INACTIVE' THEN 'Bảo trì'
-            WHEN rod.id IS NOT NULL 
-            AND NOW() BETWEEN rod.start_time AND rod.end_time 
-            THEN 'Có người đặt'
+            WHEN EXISTS (
+                SELECT 1 
+                FROM room_order_detail rod
+                JOIN orders o ON o.id = rod.order_id
+                WHERE rod.room_id = r.id
+                AND o.status NOT IN ('CANCELLED')
+                AND (
+                    (rod.start_time <= ? AND rod.end_time >= ?)  -- Kiểm tra thời gian bắt đầu
+                    OR (rod.start_time <= ? AND rod.end_time >= ?)  -- Kiểm tra thời gian kết thúc
+                    OR (rod.start_time >= ? AND rod.end_time <= ?)  -- Kiểm tra khoảng thời gian bao phủ
+                )
+            ) THEN 'Có người đặt'
             ELSE 'Trống'
-        END as booking_status,
-        rod.start_time,
-        rod.end_time,
-        rod.order_id,
-        rod.id as order_detail_id
+        END as booking_status
       FROM room r
-      LEFT JOIN (
-          SELECT *
-          FROM room_order_detail
-          WHERE start_time <= NOW() AND end_time >= NOW()
-      ) rod ON r.id = rod.room_id
-      ORDER BY r.id ASC
-    `);
+      ORDER BY 
+        CASE 
+          WHEN r.room_name LIKE '%VIP%' THEN 1
+          WHEN r.room_name LIKE '%Couple%' THEN 2
+          WHEN r.room_name LIKE '%Tournament%' THEN 3
+          ELSE 4
+        END,
+        r.room_name
+    `, [
+      startTime, startTime,
+      endTime, endTime,
+      startTime, endTime
+    ]);
 
     // Format lại response
     const formattedRooms = rooms.map(room => ({
-      id: room.room_id,        // Sửa lại đây, trước đây là order_detail_id
-      room_id: room.room_id,   
+      id: room.room_id,
+      room_id: room.room_id,
       name: room.room_name,
       price: room.price,
       status: room.booking_status,
-      originalStatus: room.room_status,
-      start_time: room.start_time,
-      end_time: room.end_time,
-      order_id: room.order_id
+      originalStatus: room.room_status
     }));
 
     return responseSuccess(res, {

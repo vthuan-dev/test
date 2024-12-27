@@ -80,11 +80,21 @@ export const statusButtonColors = {
    CANCELLED: 'error',
 };
 
+interface ChangeRoomRequest {
+   orderId: number;
+   orderDetailId: number;
+   oldRoomId: number;
+   newRoomId: number;
+   startTime: string;
+   endTime: string;
+}
+
 const OrderDetail = () => {
    const { id } = useParams();
    const queryClient = useQueryClient();
 
    const { data, refetch } = useQuery<{ data: OrderResponse }>({
+      queryKey: ['order', id],
       queryFn: () => getRequest(`/order/detail/${id}`),
    });
    const order = data?.data;
@@ -129,10 +139,15 @@ const OrderDetail = () => {
    const [selectedRoom, setSelectedRoom] = useState<any>(null);
    const [newRoomId, setNewRoomId] = useState<string>('');
 
-   const { data: availableRooms } = useQuery({
-      queryKey: ['available-rooms'],
-      queryFn: () => getRequest('/order-room-detail/available-rooms'),
-      enabled: changeRoomOpen,
+   const { data: availableRooms, refetch: refetchAvailableRooms } = useQuery({
+      queryKey: ['available-rooms', selectedRoom?.start_time, selectedRoom?.end_time],
+      queryFn: () => getRequest('/order-room-detail/available-rooms', {
+         params: {
+            startTime: selectedRoom?.start_time,
+            endTime: selectedRoom?.end_time
+         }
+      }),
+      enabled: changeRoomOpen && !!selectedRoom,
    });
 
    const { mutate: mutateChangeRoom, isLoading: isChangingRoom } = useMutation({
@@ -143,6 +158,8 @@ const OrderDetail = () => {
          toast.success('Đổi phòng thành công');
          setChangeRoomOpen(false);
          queryClient.invalidateQueries(['order', id]);
+         queryClient.invalidateQueries(['available-rooms']);
+         refetch();
       },
       onError: (error: any) => {
          console.error('Change room error:', error);
@@ -205,69 +222,66 @@ const OrderDetail = () => {
       mutateChangeRoom(changeRoomData);
    };
 
-   const RoomChangeDialog = () => {
-      return (
-         <Dialog
-            open={changeRoomOpen}
-            onClose={() => {
-               setChangeRoomOpen(false);
-               setSelectedRoom(null);
-               setNewRoomId('');
-            }}
-            maxWidth="sm"
-            fullWidth
-         >
-            <DialogTitle>
-               {selectedRoom ? `Đổi phòng ${selectedRoom.room_name}` : 'Đổi phòng'}
-            </DialogTitle>
-            <DialogContent>
-               <Box sx={{ mt: 2 }}>
-                  {selectedRoom && (
-                     <>
-                        <Typography variant="body2" gutterBottom>
-                           Thời gian: {dayjs(selectedRoom.start_time).format('DD/MM/YYYY HH:mm')} - 
-                           {dayjs(selectedRoom.end_time).format('DD/MM/YYYY HH:mm')}
-                        </Typography>
-                        <Typography variant="body2" gutterBottom>
-                           Giá hiện tại: {Number(selectedRoom.total_price).toLocaleString()}đ
-                        </Typography>
-                     </>
-                  )}
-                  
-                  <TextField
-                     select
-                     fullWidth
-                     label="Chọn phòng mới"
-                     value={newRoomId}
-                     onChange={(e) => setNewRoomId(e.target.value)}
-                     sx={{ mt: 2 }}
-                  >
-                     {availableRooms?.data?.map((room: any) => (
-                        <MenuItem 
-                           key={room.room_id}
-                           value={room.room_id}
-                           disabled={room.room_id === selectedRoom?.room_id}
-                        >
-                           {room.name} - {room.status} - {Number(room.price).toLocaleString()}đ/giờ
-                        </MenuItem>
-                     ))}
-                  </TextField>
-               </Box>
-            </DialogContent>
-            <DialogActions>
-               <Button onClick={() => setChangeRoomOpen(false)}>Hủy</Button>
-               <Button 
-                  variant="contained" 
-                  color="primary"
-                  disabled={!selectedRoom || !newRoomId || isChangingRoom}
-                  onClick={handleChangeRoom}
+   const RoomChangeDialog = () => (
+      <Dialog
+         open={changeRoomOpen}
+         onClose={() => {
+            setChangeRoomOpen(false);
+            setSelectedRoom(null);
+            setNewRoomId('');
+         }}
+         maxWidth="sm"
+         fullWidth
+      >
+         <DialogTitle>
+            {selectedRoom ? `Đổi phòng ${selectedRoom.room_name}` : 'Đổi phòng'}
+         </DialogTitle>
+         <DialogContent>
+            <Box sx={{ mt: 2 }}>
+               {selectedRoom && (
+                  <>
+                     <Typography variant="body2" gutterBottom>
+                        Thời gian: {dayjs(selectedRoom.start_time).format('DD/MM/YYYY HH:mm')} - 
+                        {dayjs(selectedRoom.end_time).format('DD/MM/YYYY HH:mm')}
+                     </Typography>
+                     <Typography variant="body2" gutterBottom>
+                        Giá hiện tại: {Number(selectedRoom.total_price).toLocaleString()}đ
+                     </Typography>
+                  </>
+               )}
+               
+               <TextField
+                  select
+                  fullWidth
+                  label="Chọn phòng mới"
+                  value={newRoomId}
+                  onChange={(e) => setNewRoomId(e.target.value)}
+                  sx={{ mt: 2 }}
                >
-                  {isChangingRoom ? 'Đang xử lý...' : 'Xác nhận đổi phòng'}
-               </Button>
-            </DialogActions>
-         </Dialog>
-      );
-   };
+                  {availableRooms?.data?.map((room: any) => (
+                     <MenuItem 
+                        key={room.room_id}
+                        value={room.room_id}
+                        disabled={room.status === 'Có người đặt' || room.room_id === selectedRoom?.room_id}
+                     >
+                        {room.name} - {room.status} - {Number(room.price).toLocaleString()}đ/giờ
+                     </MenuItem>
+                  ))}
+               </TextField>
+            </Box>
+         </DialogContent>
+         <DialogActions>
+            <Button onClick={() => setChangeRoomOpen(false)}>Hủy</Button>
+            <Button 
+               variant="contained" 
+               onClick={handleChangeRoom}
+               disabled={!newRoomId || isChangingRoom}
+            >
+               {isChangingRoom ? 'Đang xử lý...' : 'Xác nhận đổi phòng'}
+            </Button>
+         </DialogActions>
+      </Dialog>
+   );
 
    return (
       <BaseBreadcrumbs arialabel="Chi tiết hóa đơn" breadcrumbs={breadcrumbs}>
@@ -293,7 +307,7 @@ const OrderDetail = () => {
          </Box>
          {/* Order Overview Section */}
          <Card variant="outlined" sx={{ mb: 3 }}>
-            <CardHeader title="Thông tin đặt hàng" />
+            <CardHeader title="Th��ng tin đặt hàng" />
             <CardContent>
                <Grid container spacing={2}>
                   <Grid item xs={6}>
@@ -369,15 +383,7 @@ const OrderDetail = () => {
                                  <TableCell align="center">
                                     {currentStatus !== 'CHECKED_OUT' && currentStatus !== 'CANCELLED' && (
                                        <IconButton
-                                          onClick={() => handleRoomChange({
-                                             id: room.id,                // ID của room_order_detail 
-                                             room_id: room.room_id,      // ID của room
-                                             room_name: room.room_name,
-                                             start_time: room.start_time,
-                                             end_time: room.end_time,
-                                             total_price: room.total_price,
-                                             total_time: room.total_time
-                                          })}
+                                          onClick={() => handleRoomChange(room)}
                                           sx={{
                                              color: 'primary.main',
                                              '&:hover': {
