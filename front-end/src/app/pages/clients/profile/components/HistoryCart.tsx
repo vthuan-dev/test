@@ -7,15 +7,24 @@ import {
    Divider,
    Grid,
    Modal,
+   Stack,
    Table,
    TableBody,
    TableCell,
+   TableContainer,
    TableHead,
    TableRow,
    Typography,
+   Paper,
+   IconButton,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import PaymentIcon from '@mui/icons-material/Payment';
+import CloseIcon from '@mui/icons-material/Close';
+import ReceiptIcon from '@mui/icons-material/Receipt';
 
 import {
    getNextStatus,
@@ -47,196 +56,200 @@ const HistoryCart = () => {
    };
 
    return (
-      <>
-         <Box mt={4}>
-            <Typography variant="h5">Lịch sử đặt hàng:</Typography>
+      <Box sx={{ p: 3 }}>
+         <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold', color: 'primary.main' }}>
+            Lịch sử đặt hàng
+         </Typography>
+
+         <TableContainer component={Paper} elevation={3}>
             <Table>
                <TableHead>
-                  <TableRow>
-                     <TableCell>Mã đơn hàng</TableCell>
-                     <TableCell>Ngày đặt</TableCell>
-                     <TableCell>Tổng tiền</TableCell>
-                     <TableCell>Trạng thái</TableCell>
-                     <TableCell>Chi tiết</TableCell>
+                  <TableRow sx={{ bgcolor: 'primary.main' }}>
+                     <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Mã đơn</TableCell>
+                     <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Ngày đặt</TableCell>
+                     <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Tổng tiền</TableCell>
+                     <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Trạng thái</TableCell>
+                     <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Chi tiết</TableCell>
                   </TableRow>
                </TableHead>
                <TableBody>
-                  {orders?.data && orders?.data.length > 0 ? (
-                     orders.data.map((order) => {
-                        const currentStatus = order.order_status as OrderStatusKey | undefined;
-                        const nextStatus = currentStatus ? getNextStatus(currentStatus) : undefined;
-                        return (
-                           <TableRow key={order.id} hover>
-                              <TableCell>{order.id}</TableCell>
-                              <TableCell>{new Date(order.order_date).toLocaleDateString()}</TableCell>
-                              <TableCell>{order.total_money.toLocaleString('vi-VN', 
-                                    { style: 'currency', currency: 'VND' })}</TableCell>
-                              <TableCell>
-                                 <Chip
-                                    label={ORDER_STATUS_LABELS[nextStatus as never]}
-                                    color={statusButtonColors[nextStatus as never] || 'primary'}
-                                 />
-                              </TableCell>
-                              <TableCell>
-                                 <Button variant="contained" color="primary" onClick={() => handleOpenModal(order)}>
-                                    Xem chi tiết
-                                 </Button>
-                              </TableCell>
-                           </TableRow>
-                        );
-                     })
-                  ) : (
-                     <TableRow>
-                        <TableCell colSpan={5} align="center">
-                           Không có đơn hàng nào.
+                  {orders?.data?.map((order) => (
+                     <TableRow 
+                        key={order.id} 
+                        hover
+                        sx={{ '&:hover': { bgcolor: 'action.hover' } }}
+                     >
+                        <TableCell>#{order.id}</TableCell>
+                        <TableCell>{new Date(order.order_date).toLocaleDateString('vi-VN')}</TableCell>
+                        <TableCell sx={{ fontWeight: 'medium', color: 'success.main' }}>
+                           {order.total_money.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
+                        </TableCell>
+                        <TableCell>
+                           <Chip
+                              label={order.order_status}
+                              color={order.payment_status === 1 ? 'success' : 'error'}
+                              variant="outlined"
+                              size="small"
+                           />
+                        </TableCell>
+                        <TableCell>
+                           <Button 
+                              variant="contained"
+                              size="small"
+                              onClick={() => handleOpenModal(order)}
+                              startIcon={<ReceiptIcon />}
+                           >
+                              Chi tiết
+                           </Button>
                         </TableCell>
                      </TableRow>
-                  )}
+                  ))}
                </TableBody>
             </Table>
+         </TableContainer>
 
-            {/* Modal hiển thị chi tiết đơn hàng */}
-            <Modal
-               open={openModal}
-               onClose={handleCloseModal}
-               aria-labelledby="order-details-title"
-               aria-describedby="order-details-description"
-            >
-               <Box
-                  sx={{
-                     p: 4,
-                     bgcolor: '#fff',
-                     borderRadius: 2,
-                     maxWidth: 600,
-                     margin: 'auto',
-                     marginTop: '100px',
-                     boxShadow: 24,
-                     maxHeight: '80vh',
-                     overflowY: 'auto',
-                  }}
-               >
-                  <Typography id="order-details-title" variant="h5" component="h2" gutterBottom>
+         {/* Modal Chi tiết */}
+         <Modal open={openModal} onClose={handleCloseModal}>
+            <Box sx={{
+               position: 'absolute',
+               top: '50%',
+               left: '50%',
+               transform: 'translate(-50%, -50%)',
+               width: { xs: '90%', sm: '80%', md: 800 },
+               maxHeight: '90vh',
+               bgcolor: 'background.paper',
+               borderRadius: 2,
+               boxShadow: 24,
+               overflow: 'auto',
+            }}>
+               {/* Header */}
+               <Box sx={{ 
+                  p: 2, 
+                  bgcolor: 'primary.main', 
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+               }}>
+                  <Typography variant="h6">
                      Chi tiết đơn hàng #{selectedOrder?.id}
                   </Typography>
-                  <Divider sx={{ mb: 2 }} />
-                  <Grid container spacing={2}>
+                  <IconButton onClick={handleCloseModal} sx={{ color: 'white' }}>
+                     <CloseIcon />
+                  </IconButton>
+               </Box>
+
+               <Box sx={{ p: 3 }}>
+                  <Grid container spacing={3}>
+                     {/* Thông tin đơn hàng */}
                      <Grid item xs={12}>
-                        <Typography variant="body1" sx={{ color: '#3f51b5', mb: 1 }}>
-                           Ngày đặt hàng:{' '}
-                           <strong>{new Date(selectedOrder?.order_date as never).toLocaleDateString()}</strong>
-                        </Typography>
+                        <Card sx={{ p: 2, bgcolor: 'grey.50' }}>
+                           <Stack spacing={2}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                 <AccessTimeIcon color="primary" />
+                                 <Typography>
+                                    Ngày đặt: {new Date(selectedOrder?.order_date as string).toLocaleString('vi-VN')}
+                                 </Typography>
+                              </Box>
+                              
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                 <PaymentIcon color="primary" />
+                                 <Stack>
+                                    <Typography>
+                                       Phương thức: {selectedOrder?.payment_method === 1 ? 
+                                          'Thanh toán online' : 'Thanh toán tại quầy'}
+                                    </Typography>
+                                    <Chip 
+                                       label={selectedOrder?.payment_status === 1 ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                                       color={selectedOrder?.payment_status === 1 ? 'success' : 'error'}
+                                       size="small"
+                                       sx={{ mt: 1 }}
+                                    />
+                                 </Stack>
+                              </Box>
+                           </Stack>
+                        </Card>
                      </Grid>
-                     <Grid item xs={12}>
-                        <Typography
-                           variant="body1"
-                           sx={{ color: selectedOrder?.order_status === 'Đã giao' ? 'green' : 'red', mb: 1 }}
-                        >
-                           Trạng thái: <strong>{selectedOrder?.order_status}</strong>
-                        </Typography>
-                     </Grid>
-                     <Grid item xs={12}>
-                        <Typography variant="body1" sx={{ mb: 2 }}>
-                           Tổng tiền: <strong>{selectedOrder?.total_money.toLocaleString()} VND</strong>
-                        </Typography>
-                     </Grid>
-                     <Grid item xs={12} mt={2}>
-                        <Typography variant="h6" sx={{ color: '#3f51b5', fontWeight: 'bold', mb: 1 }}>
-                           Chi tiết sản phẩm:
-                        </Typography>
-                        <Grid container spacing={2}>
-                           {selectedOrder?.order_details && selectedOrder.order_details.length > 0 ? (
-                              selectedOrder.order_details.map((detail) => (
-                                 <Grid item xs={6} key={detail.id}>
-                                    {/* 2 sản phẩm mỗi hàng */}
-                                    <Card sx={{ display: 'flex', padding: 2, borderRadius: 2 }}>
-                                       <img
-                                          src={detail.product_image}
-                                          alt={detail.product_name}
-                                          style={{
-                                             width: 80,
-                                             height: 80,
-                                             borderRadius: 8,
-                                             marginRight: 12,
-                                          }}
-                                       />
-                                       <Box sx={{ flex: 1 }}>
-                                          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                                             Sản phẩm: {detail.product_name}
-                                          </Typography>
-                                          <Typography variant="body2">
-                                             Số lượng: <strong>{detail.quantity}</strong>
-                                          </Typography>
-                                          <Typography variant="body2">
-                                             Giá: <strong>{Number(detail.price).toLocaleString()} VND</strong>
-                                          </Typography>
-                                          <Typography variant="body2">
-                                             Tổng:{' '}
-                                             <strong>
-                                                {(Number(detail.quantity) * Number(detail.price)).toLocaleString()} VND
-                                             </strong>
-                                          </Typography>
-                                       </Box>
-                                    </Card>
-                                 </Grid>
-                              ))
-                           ) : (
-                              <Typography variant="body2">Không có sản phẩm nào.</Typography>
-                           )}
+
+                     {/* Chi tiết phòng */}
+                     {selectedOrder?.room_order_details?.map((room) => (
+                        <Grid item xs={12} key={room.id}>
+                           <Card sx={{ 
+                              p: 2,
+                              display: 'flex',
+                              gap: 2,
+                              '&:hover': { boxShadow: 6 },
+                              transition: 'box-shadow 0.3s'
+                           }}>
+                              <Box 
+                                 component="img"
+                                 src={room.room_image}
+                                 sx={{ 
+                                    width: 200,
+                                    height: 120,
+                                    objectFit: 'cover',
+                                    borderRadius: 1,
+                                 }}
+                              />
+                              <Stack spacing={1} flex={1}>
+                                 <Typography variant="h6" color="primary">
+                                    {room.room_name}
+                                 </Typography>
+                                 
+                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <AccessTimeIcon fontSize="small" color="action" />
+                                    <Typography variant="body2">
+                                       {new Date(room.start_time).toLocaleString('vi-VN')} - 
+                                       {new Date(room.end_time).toLocaleString('vi-VN')}
+                                    </Typography>
+                                 </Box>
+
+                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <LocationOnIcon fontSize="small" color="action" />
+                                    <Typography variant="body2">
+                                       {room.room_position}
+                                    </Typography>
+                                 </Box>
+
+                                 <Typography 
+                                    variant="subtitle1" 
+                                    color="success.main"
+                                    sx={{ fontWeight: 'bold', mt: 'auto' }}
+                                 >
+                                    {room.total_price.toLocaleString('vi-VN', { 
+                                       style: 'currency', 
+                                       currency: 'VND' 
+                                    })}
+                                 </Typography>
+                              </Stack>
+                           </Card>
                         </Grid>
-                     </Grid>
-                     <Grid item xs={12} mt={2}>
-                        <Typography variant="h6" sx={{ color: '#3f51b5', fontWeight: 'bold', mb: 1 }}>
-                           Chi tiết đặt phòng:
-                        </Typography>
-                        <Grid container spacing={2}>
-                           {selectedOrder?.room_order_details && selectedOrder.room_order_details.length > 0 ? (
-                              selectedOrder.room_order_details.map((roomDetail) => (
-                                 <Grid item xs={12} key={roomDetail.room_id}>
-                                    <Card sx={{ display: 'flex', padding: 2, borderRadius: 2 }}>
-                                       <img
-                                          src={roomDetail.room_image} // Assuming room_image is provided
-                                          alt={`Room ${roomDetail.room_id}`}
-                                          style={{
-                                             width: 80,
-                                             height: 80,
-                                             borderRadius: 8,
-                                             marginRight: 12,
-                                          }}
-                                       />
-                                       <Box sx={{ flex: 1 }}>
-                                          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                                             Phòng ID: <strong>{roomDetail.room_id}</strong>
-                                          </Typography>
-                                          <Typography variant="body2">
-                                             Thời gian bắt đầu:{' '}
-                                             <strong>{new Date(roomDetail.start_time).toLocaleString()}</strong>
-                                          </Typography>
-                                          <Typography variant="body2">
-                                             Thời gian kết thúc:{' '}
-                                             <strong>{new Date(roomDetail.end_time).toLocaleString()}</strong>
-                                          </Typography>
-                                          <Typography variant="body2">
-                                             Tổng giá: <strong>{roomDetail.total_price.toLocaleString()} VND</strong>
-                                          </Typography>
-                                       </Box>
-                                    </Card>
-                                 </Grid>
-                              ))
-                           ) : (
-                              <Typography variant="body2">Không có phòng nào.</Typography>
-                           )}
-                        </Grid>
-                     </Grid>
+                     ))}
                   </Grid>
-                  <Box mt={3} display="flex" justifyContent="flex-end">
-                     <Button variant="outlined" color="primary" onClick={handleCloseModal}>
+
+                  <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                     <Typography variant="h6">
+                        Tổng tiền: {' '}
+                        <Typography 
+                           component="span" 
+                           color="success.main" 
+                           variant="h6" 
+                           fontWeight="bold"
+                        >
+                           {selectedOrder?.total_money.toLocaleString('vi-VN', { 
+                              style: 'currency', 
+                              currency: 'VND' 
+                           })}
+                        </Typography>
+                     </Typography>
+                     <Button variant="contained" onClick={handleCloseModal}>
                         Đóng
                      </Button>
                   </Box>
                </Box>
-            </Modal>
-         </Box>
-      </>
+            </Box>
+         </Modal>
+      </Box>
    );
 };
 

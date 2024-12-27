@@ -28,6 +28,17 @@ import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import { useState } from 'react';
+import ReceiptIcon from '@mui/icons-material/Receipt';
+import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import CircleIcon from '@mui/icons-material/Circle';
+import PaidIcon from '@mui/icons-material/Paid';
+import PersonIcon from '@mui/icons-material/Person';
+import EmailIcon from '@mui/icons-material/Email';
+import StarsIcon from '@mui/icons-material/Stars';
+import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 
 import { ROUTE_PATH } from '@constants';
 import BaseBreadcrumbs from '@components/design-systems/BaseBreadcrumbs/BaseBreadcrumbs';
@@ -236,18 +247,53 @@ const OrderDetail = () => {
          <DialogTitle>
             {selectedRoom ? `Đổi phòng ${selectedRoom.room_name}` : 'Đổi phòng'}
          </DialogTitle>
-         <DialogContent>
-            <Box sx={{ mt: 2 }}>
+         <DialogContent sx={{ px: 3, py: 2 }}>
+            <Box>
                {selectedRoom && (
-                  <>
-                     <Typography variant="body2" gutterBottom>
-                        Thời gian: {dayjs(selectedRoom.start_time).format('DD/MM/YYYY HH:mm')} - 
-                        {dayjs(selectedRoom.end_time).format('DD/MM/YYYY HH:mm')}
-                     </Typography>
-                     <Typography variant="body2" gutterBottom>
-                        Giá hiện tại: {Number(selectedRoom.total_price).toLocaleString()}đ
-                     </Typography>
-                  </>
+                  <Box 
+                     sx={{ 
+                        mb: 3,
+                        p: 2.5,
+                        bgcolor: 'primary.lighter',
+                        borderRadius: 2,
+                        border: '1px solid',
+                        borderColor: 'primary.light'
+                     }}
+                  >
+                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <MeetingRoomIcon sx={{ mr: 1, color: 'primary.main' }} />
+                        <Typography variant="subtitle1" color="primary.main" fontWeight={600}>
+                           {selectedRoom.room_name}
+                        </Typography>
+                     </Box>
+
+                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                           <AccessTimeIcon sx={{ mr: 1, color: 'text.secondary', fontSize: 20 }} />
+                           <Box>
+                              <Typography variant="caption" color="text.secondary" display="block">
+                                 Thời gian đặt
+                              </Typography>
+                              <Typography variant="body2">
+                                 {dayjs(selectedRoom.start_time).format('DD/MM/YYYY HH:mm')} - 
+                                 {dayjs(selectedRoom.end_time).format('DD/MM/YYYY HH:mm')}
+                              </Typography>
+                           </Box>
+                        </Box>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                           <PaidIcon sx={{ mr: 1, color: 'text.secondary', fontSize: 20 }} />
+                           <Box>
+                              <Typography variant="caption" color="text.secondary" display="block">
+                                 Giá hiện tại
+                              </Typography>
+                              <Typography variant="body2" fontWeight={500} color="error.main">
+                                 {Number(selectedRoom.total_price).toLocaleString()}đ
+                              </Typography>
+                           </Box>
+                        </Box>
+                     </Box>
+                  </Box>
                )}
                
                <TextField
@@ -256,15 +302,61 @@ const OrderDetail = () => {
                   label="Chọn phòng mới"
                   value={newRoomId}
                   onChange={(e) => setNewRoomId(e.target.value)}
-                  sx={{ mt: 2 }}
+                  sx={{
+                     '& .MuiOutlinedInput-root': {
+                        borderRadius: 2,
+                     }
+                  }}
                >
                   {availableRooms?.data?.map((room: any) => (
                      <MenuItem 
                         key={room.room_id}
                         value={room.room_id}
                         disabled={room.status === 'Có người đặt' || room.room_id === selectedRoom?.room_id}
+                        sx={{
+                           py: 1.5,
+                           px: 2,
+                           borderRadius: 1,
+                           mb: 0.5,
+                           '&:hover': {
+                              bgcolor: 'primary.lighter'
+                           },
+                           '&.Mui-disabled': {
+                              opacity: 0.7,
+                              bgcolor: 'grey.100'
+                           }
+                        }}
                      >
-                        {room.name} - {room.status} - {Number(room.price).toLocaleString()}đ/giờ
+                        <Box sx={{ width: '100%' }}>
+                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                              <Typography variant="body2" fontWeight={500}>
+                                 {room.name}
+                              </Typography>
+                              <Typography 
+                                 variant="body2" 
+                                 color="primary.main"
+                                 fontWeight={500}
+                              >
+                                 {Number(room.price).toLocaleString()}đ/giờ
+                              </Typography>
+                           </Box>
+                           
+                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <FiberManualRecordIcon 
+                                 sx={{ 
+                                    mr: 0.5, 
+                                    fontSize: 12,
+                                    color: room.status === 'Trống' ? 'success.main' : 'error.main'
+                                 }} 
+                              />
+                              <Typography 
+                                 variant="caption"
+                                 color={room.status === 'Trống' ? 'success.main' : 'error.main'}
+                              >
+                                 {room.status}
+                              </Typography>
+                           </Box>
+                        </Box>
                      </MenuItem>
                   ))}
                </TextField>
@@ -306,36 +398,143 @@ const OrderDetail = () => {
 
          </Box>
          {/* Order Overview Section */}
-         <Card variant="outlined" sx={{ mb: 3 }}>
-            <CardHeader title="Th��ng tin đặt hàng" />
-            <CardContent>
-               <Grid container spacing={2}>
+         <Card 
+            sx={{ 
+               mb: 3,
+               borderRadius: 2,
+               boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+               border: 'none'
+            }}
+         >
+            <CardHeader 
+               title={
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                     <ReceiptIcon sx={{ mr: 1, color: 'primary.main' }} />
+                     <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        Thông tin đặt hàng
+                     </Typography>
+                  </Box>
+               }
+               sx={{
+                  borderBottom: '1px solid #eee',
+                  bgcolor: '#f8f9fa',
+                  p: 2.5
+               }}
+            />
+            <CardContent sx={{ p: 3 }}>
+               <Grid container spacing={3}>
                   <Grid item xs={6}>
-                     <Typography variant="body1">
-                        <strong>Mã đơn hàng:</strong> {order?.order_id}
-                     </Typography>
-                     <Typography variant="body1">
-                        <strong>Ngày từ:</strong> {dayjs(order?.order_date).format('DD-MM-YYYY HH:mm:ss')}
-                     </Typography>
-                     <Typography variant="body1">
-                        <strong>Trạng thái hóa đơn:</strong> {order?.order_status}
-                     </Typography>
-                     <Typography variant="body1" sx={{ display: 'flex', gap: 2 }}>
-                        <strong>Tổng tiền:</strong>
-                        <Typography color="error">{Number(order?.total_amount).toLocaleString()} đ</Typography>
-                     </Typography>
+                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                           <ConfirmationNumberIcon sx={{ mr: 1, color: 'text.secondary', fontSize: 20 }} />
+                           <Typography variant="body1" color="text.secondary">
+                              Mã đơn hàng: 
+                              <Typography component="span" sx={{ ml: 1, fontWeight: 600 }}>
+                                 #{order?.order_id}
+                              </Typography>
+                           </Typography>
+                        </Box>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                           <CalendarTodayIcon sx={{ mr: 1, color: 'text.secondary', fontSize: 20 }} />
+                           <Typography variant="body1" color="text.secondary">
+                              Ngày đặt:
+                              <Typography component="span" sx={{ ml: 1, fontWeight: 500 }}>
+                                 {dayjs(order?.order_date).format('DD-MM-YYYY HH:mm:ss')}
+                              </Typography>
+                           </Typography>
+                        </Box>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                           <CircleIcon sx={{ 
+                              mr: 1, 
+                              fontSize: 20,
+                              color: order?.order_status === 'CHECKED_OUT' ? 'success.main' 
+                                 : order?.order_status === 'CANCELLED' ? 'error.main'
+                                 : 'warning.main'
+                           }} />
+                           <Typography variant="body1" color="text.secondary">
+                              Trạng thái:
+                              <Typography 
+                                 component="span" 
+                                 sx={{ 
+                                    ml: 1,
+                                    fontWeight: 600,
+                                    color: order?.order_status === 'CHECKED_OUT' ? 'success.main' 
+                                       : order?.order_status === 'CANCELLED' ? 'error.main'
+                                       : 'warning.main'
+                                 }}
+                              >
+                                 {order?.order_status}
+                              </Typography>
+                           </Typography>
+                        </Box>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                           <PaidIcon sx={{ mr: 1, color: 'error.main', fontSize: 20 }} />
+                           <Typography variant="body1" color="text.secondary">
+                              Tổng tiền:
+                              <Typography component="span" sx={{ ml: 1, fontWeight: 600, color: 'error.main' }}>
+                                 {Number(order?.total_amount).toLocaleString()} đ
+                              </Typography>
+                           </Typography>
+                        </Box>
+                     </Box>
                   </Grid>
+
                   <Grid item xs={6}>
-                     <Typography variant="body1">
-                        <strong>Người đặt:</strong> {order?.user?.username}
-                     </Typography>
-                     <Typography variant="body1">
-                        <strong>Email:</strong> {order?.user?.email}
-                     </Typography>
-                     <Typography variant="body1">
-                        <strong>VIP:</strong>{' '}
-                        {order?.user?.is_vip ? `VIP (Expires: ${order.user.vip_end_date})` : 'Regular'}
-                     </Typography>
+                     <Box 
+                        sx={{ 
+                           display: 'flex', 
+                           flexDirection: 'column', 
+                           gap: 2,
+                           height: '100%',
+                           bgcolor: 'primary.lighter',
+                           borderRadius: 2,
+                           p: 2
+                        }}
+                     >
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                           <PersonIcon sx={{ mr: 1, color: 'primary.main', fontSize: 20 }} />
+                           <Typography variant="body1" color="text.secondary">
+                              Người đặt:
+                              <Typography component="span" sx={{ ml: 1, fontWeight: 500 }}>
+                                 {order?.user?.username}
+                              </Typography>
+                           </Typography>
+                        </Box>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                           <EmailIcon sx={{ mr: 1, color: 'primary.main', fontSize: 20 }} />
+                           <Typography variant="body1" color="text.secondary">
+                              Email:
+                              <Typography component="span" sx={{ ml: 1, fontWeight: 500 }}>
+                                 {order?.user?.email}
+                              </Typography>
+                           </Typography>
+                        </Box>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                           <StarsIcon sx={{ 
+                              mr: 1, 
+                              color: order?.user?.is_vip ? 'warning.main' : 'text.secondary',
+                              fontSize: 20 
+                           }} />
+                           <Typography variant="body1" color="text.secondary">
+                              Trạng thái:
+                              <Typography 
+                                 component="span" 
+                                 sx={{ 
+                                    ml: 1,
+                                    fontWeight: 600,
+                                    color: order?.user?.is_vip ? 'warning.main' : 'text.secondary'
+                                 }}
+                              >
+                                 {order?.user?.is_vip ? `VIP (Hết hạn: ${order.user.vip_end_date})` : 'Thường'}
+                              </Typography>
+                           </Typography>
+                        </Box>
+                     </Box>
                   </Grid>
                </Grid>
             </CardContent>
