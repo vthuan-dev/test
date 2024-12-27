@@ -244,9 +244,9 @@ const OrderDetail = () => {
                   >
                      {availableRooms?.data?.map((room: any) => (
                         <MenuItem 
-                           key={room.id} 
-                           value={room.id}
-                           disabled={room.id === selectedRoom?.room_id}
+                           key={room.room_id}
+                           value={room.room_id}
+                           disabled={room.room_id === selectedRoom?.room_id}
                         >
                            {room.name} - {room.status} - {Number(room.price).toLocaleString()}đ/giờ
                         </MenuItem>

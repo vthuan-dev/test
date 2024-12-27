@@ -298,40 +298,43 @@ export const getAvailableRooms = async (req, res) => {
   try {
     const connection = await orderRoomModel.connection.promise();
     
-    // Sửa lại query để lấy đúng thông tin phòng và chi tiết đặt phòng
     const [rooms] = await connection.query(`
       SELECT 
-        r.id as room_id,           -- ID của phòng
+        r.id as room_id,
         r.room_name,
         r.price,
-        r.status,
-        rod.id as order_detail_id, -- ID của room_order_detail
+        r.status as room_status,
+        CASE 
+            WHEN r.status = 'INACTIVE' THEN 'Bảo trì'
+            WHEN rod.id IS NOT NULL 
+            AND NOW() BETWEEN rod.start_time AND rod.end_time 
+            THEN 'Có người đặt'
+            ELSE 'Trống'
+        END as booking_status,
         rod.start_time,
         rod.end_time,
-        rod.order_id,              -- Thêm order_id để kiểm tra
-        EXISTS (
-          SELECT 1 
-          FROM room_order_detail rod2 
-          WHERE rod2.room_id = r.id 
-          AND NOW() BETWEEN rod2.start_time AND rod2.end_time
-        ) as is_occupied
+        rod.order_id,
+        rod.id as order_detail_id
       FROM room r
-      LEFT JOIN room_order_detail rod ON r.id = rod.room_id
-      WHERE r.status != 'INACTIVE'
+      LEFT JOIN (
+          SELECT *
+          FROM room_order_detail
+          WHERE start_time <= NOW() AND end_time >= NOW()
+      ) rod ON r.id = rod.room_id
       ORDER BY r.id ASC
     `);
 
-    // Format lại response để phù hợp với cấu trúc dữ liệu
+    // Format lại response
     const formattedRooms = rooms.map(room => ({
-      id: room.order_detail_id,    // ID của room_order_detail (có thể null)
-      room_id: room.room_id,       // ID của room (không null)
+      id: room.room_id,        // Sửa lại đây, trước đây là order_detail_id
+      room_id: room.room_id,   
       name: room.room_name,
       price: room.price,
+      status: room.booking_status,
+      originalStatus: room.room_status,
       start_time: room.start_time,
       end_time: room.end_time,
-      order_id: room.order_id,
-      status: room.is_occupied ? 'Có người đặt' : 'Trống',
-      originalStatus: room.status
+      order_id: room.order_id
     }));
 
     return responseSuccess(res, {
