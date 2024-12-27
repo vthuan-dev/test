@@ -34,27 +34,22 @@ const Order = () => {
    const { setParams, searchParams } = useSearchParamsHook();
 
    const { data: orders, isLoading } = useQuery<ResponseGetList<OrderItem>>({
-      queryKey: ['orders', searchParams.page],
+      queryKey: ['orders'],
       queryFn: async () => {
          const queryParam = new URLSearchParams({
-            page: String(searchParams.page ?? 1),
-            limit: String(10),
-            isPagination: String(true),
+            isPagination: String(false),
          });
          const response = await getRequest(`/order?${queryParam}`);
          return response;
       },
    });
 
-   const currentPage = Number(searchParams.page ?? 1);
-   const totalPage = orders?.pagination?.totalPage ?? 1;
-
    const sortedOrders = React.useMemo(() => {
       if (!orders?.data) return [];
       return [...orders.data].sort((a, b) => {
-         const dateA = dayjs(b.created_at || b.order_date);
-         const dateB = dayjs(a.created_at || a.order_date);
-         return dateA.valueOf() - dateB.valueOf();
+         const dateA = new Date(b.created_at || b.order_date).getTime();
+         const dateB = new Date(a.created_at || a.order_date).getTime();
+         return dateA - dateB;
       });
    }, [orders?.data]);
 
@@ -89,7 +84,7 @@ const Order = () => {
                <ScrollbarBase
                   sx={{
                      width: '100%',
-                     height: '500px',
+                     height: '700px',
                      '&::-webkit-scrollbar': {
                         width: '6px',
                         height: '6px',
@@ -249,45 +244,6 @@ const Order = () => {
                   </Table>
                </ScrollbarBase>
             </TableContainer>
-         </Box>
-
-         {/* Pagination */}
-         <Box 
-            sx={{
-               display: 'flex',
-               alignItems: 'center',
-               justifyContent: 'flex-end',
-               gap: 2,
-               mt: 3
-            }}
-         >
-            <Typography 
-               sx={{
-                  fontSize: '0.9rem',
-                  color: 'rgba(255,255,255,0.7)'
-               }}
-            >
-               Trang {currentPage} trên {totalPage}
-            </Typography>
-            <Pagination
-               count={totalPage}
-               page={Number(currentPage)}
-               onChange={(_, page) => setParams('page', String(page))}
-               sx={{
-                  '& .MuiPaginationItem-root': {
-                     color: 'rgba(255,255,255,0.7)',
-                     border: '1px solid rgba(255,255,255,0.05)',
-                     '&.Mui-selected': {
-                        background: 'rgba(0,255,136,0.1)',
-                        color: '#00ff88',
-                        borderColor: '#00ff88',
-                     },
-                     '&:hover': {
-                        background: 'rgba(255,255,255,0.05)',
-                     }
-                  }
-               }}
-            />
          </Box>
       </BaseBreadcrumbs>
    );

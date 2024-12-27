@@ -17,7 +17,12 @@ export const getAll = async (req, res) => {
       query
     );
 
-    const product = await orderModel.read(query, isPagination);
+    const queryWithOrder = {
+      ...query,
+      orderBy: "created_at DESC"
+    };
+
+    const product = await orderModel.read(queryWithOrder, isPagination);
 
     const data = {
       message: "Lấy danh sách thành công.",
@@ -699,7 +704,7 @@ export const getOrderDetail = async (req, res) => {
           total_time: order.total_time,
           total_price: order.total_price
         })),
-      products: []  // Giữ mảng products rỗng vì không có sản phẩm
+      products: []  // Giữ mảng products rỗng vì không có sản ph��m
     };
 
     return responseSuccess(res, {
@@ -709,6 +714,44 @@ export const getOrderDetail = async (req, res) => {
 
   } catch (error) {
     console.error("Get order detail error:", error);
+    return responseError(res, error);
+  }
+};
+
+export const getAllOrders = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, isPagination = false } = req.query;
+    const offset = (page - 1) * limit;
+
+    // Thêm ORDER BY vào câu query
+    const query = `
+      SELECT 
+        o.*,
+        u.fullname as user_name,
+        u.email as user_email
+      FROM orders o
+      LEFT JOIN users u ON o.user_id = u.id
+      ORDER BY o.created_at DESC, o.id DESC
+      ${isPagination === 'true' ? `LIMIT ${limit} OFFSET ${offset}` : ''}
+    `;
+
+    const [orders] = await orderModel.connection.promise().query(query);
+    
+    // ... rest of the code (pagination calculation etc)
+
+    return responseSuccess(res, {
+      message: "Lấy danh sách đơn hàng thành công",
+      data: orders,
+      pagination: isPagination === 'true' ? {
+        totalPage,
+        currentPage: +page,
+        pageSize: +limit,
+        totalRow: totalItems
+      } : undefined
+    });
+
+  } catch (error) {
+    console.error("Get all orders error:", error);
     return responseError(res, error);
   }
 };

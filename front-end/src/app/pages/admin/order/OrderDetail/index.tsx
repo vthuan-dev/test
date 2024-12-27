@@ -203,10 +203,6 @@ const OrderDetail = () => {
          return;
       }
 
-      // Log để kiểm tra dữ liệu
-      console.log('Selected room:', selectedRoom);
-      console.log('Order ID:', order?.order_id);
-
       // Kiểm tra và chuyển đổi kiểu dữ liệu
       const orderId = Number(order?.order_id);
       const orderDetailId = Number(selectedRoom.id);
@@ -220,13 +216,14 @@ const OrderDetail = () => {
          return;
       }
 
+      // Format thời gian theo định dạng YYYY-MM-DD HH:mm:ss
       const changeRoomData: ChangeRoomRequest = {
          orderId,
          orderDetailId,
          oldRoomId,
          newRoomId: newRoomIdNum,
-         startTime: dayjs(selectedRoom.start_time).format(),
-         endTime: dayjs(selectedRoom.end_time).format()
+         startTime: dayjs(selectedRoom.start_time).format('YYYY-MM-DD HH:mm:ss'),
+         endTime: dayjs(selectedRoom.end_time).format('YYYY-MM-DD HH:mm:ss')
       };
 
       console.log('Final change room request:', changeRoomData);

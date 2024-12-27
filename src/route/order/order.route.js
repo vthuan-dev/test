@@ -8,7 +8,7 @@ router.post("/add", orderController.create);
 router.put("/update/:id", orderController.update);
 router.delete("/remove/:id", orderController.deleteById);
 router.get("/searchById/:id", orderController.findById);
-router.get("", orderController.getAll);
+router.get("/", orderController.getAll);
 router.get("/detail/:id", orderController.getOrderDetail);
 router.get("/statistic-product", orderController.statisticProductOrder);
 router.get("/statistic-room", orderController.statisticRoomOrder);
