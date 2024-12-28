@@ -441,7 +441,7 @@ const OrderDetail = () => {
    const [extendRequestDialogOpen, setExtendRequestDialogOpen] = useState(false);
    const [selectedRequest, setSelectedRequest] = useState<any>(null);
 
-   // Query để lấy danh sách yêu cầu gia hạn cho đơn hàng cụ thể
+   // Query để lấy danh sách y��u cầu gia hạn cho đơn hàng cụ thể
    const { data: extendRequests } = useQuery({
       queryKey: ['extend-requests', id],
       queryFn: () => getRequest(`/order/extend-requests/${id}`),
@@ -467,7 +467,9 @@ const OrderDetail = () => {
          putRequest('/order/extend-payment', { request_id: requestId }),
       onSuccess: () => {
          toast.success('Đã cập nhật trạng thái thanh toán');
+         // Invalidate cả 2 query để cập nhật dữ liệu ngay lập tức
          queryClient.invalidateQueries(['extend-requests', id]);
+         queryClient.invalidateQueries(['order-detail', id]); 
       },
       onError: (error: any) => {
          toast.error('Lỗi khi cập nhật trạng thái thanh toán');
@@ -534,7 +536,7 @@ const OrderDetail = () => {
          </DialogContent>
          <DialogActions>
             <Button onClick={() => setExtendRequestDialogOpen(false)}>
-               Đóng
+               Đ��ng
             </Button>
             {selectedRequest?.request_status === 'PENDING' && (
                <>
