@@ -1067,7 +1067,7 @@ export const approveExtendRoom = async (req, res) => {
     `, [request_id]);
 
     if (!requests.length) {
-      return responseError(res, { message: "Không tìm thấy yêu cầu gia hạn hoặc yêu cầu đã được xử lý" });
+      return responseError(res, { message: "Kh��ng tìm thấy yêu cầu gia hạn hoặc yêu cầu đã được xử lý" });
     }
 
     const request = requests[0];
@@ -1154,42 +1154,39 @@ export const getExtendRequests = async (req, res) => {
     const { order_id } = req.params;
     const connection = await orderModel.connection.promise();
 
-    const [requests] = await connection.query(`
-      WITH unpaid_total AS (
-        SELECT SUM(additional_price) as total_unpaid_amount
-        FROM extend_room_requests
-        WHERE order_id = ?
-        AND request_status = 'APPROVED'
-        AND payment_status = 'UNPAID'
-      )
+    // Lấy danh sách yêu cầu và tính tổng tiền chưa thanh toán
+    const [results] = await connection.query(`
       SELECT 
-        er.id,
-        er.room_order_id,
-        er.request_status,
-        er.additional_hours,
-        er.additional_price,
-        er.created_at,
-        er.payment_status,
+        er.*,
         rod.start_time,
         rod.end_time,
         r.room_name,
-        ut.total_unpaid_amount
+        (
+          SELECT SUM(additional_price)
+          FROM extend_room_requests
+          WHERE order_id = er.order_id
+          AND request_status = 'APPROVED'
+          AND payment_status = 'UNPAID'
+        ) as total_unpaid_amount
       FROM extend_room_requests er
       JOIN room_order_detail rod ON er.room_order_id = rod.id
       JOIN room r ON rod.room_id = r.id
-      CROSS JOIN unpaid_total ut
       WHERE er.order_id = ?
       ORDER BY er.created_at DESC
-    `, [order_id, order_id]);
+    `, [order_id]);
 
-    // Lấy tổng số tiền chưa thanh toán từ kết quả đầu tiên
-    const unpaidAmount = requests.length > 0 ? requests[0].total_unpaid_amount || 0 : 0;
+    // Lấy tổng tiền chưa thanh toán từ bản ghi đầu tiên
+    const unpaidAmount = results.length > 0 ? results[0].total_unpaid_amount || 0 : 0;
+
+    // Map lại kết quả để loại bỏ trường total_unpaid_amount từ các bản ghi
+    const requests = results.map(({ total_unpaid_amount, ...rest }) => rest);
 
     return responseSuccess(res, {
       message: "Lấy danh sách yêu cầu gia hạn thành công",
       data: requests,
-      unpaidAmount: unpaidAmount
+      unpaidAmount
     });
+
   } catch (error) {
     console.error("Get extend requests error:", error);
     return responseError(res, error);

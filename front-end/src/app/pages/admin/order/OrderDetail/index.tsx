@@ -448,6 +448,9 @@ const OrderDetail = () => {
       enabled: !!id
    });
 
+   // Lấy unpaidAmount trực tiếp từ response API
+   const unpaidAmount = extendRequests?.unpaidAmount || 0;
+
    // Mutation để xử lý yêu cầu
    const { mutate: handleExtendRequest } = useMutation({
       mutationFn: (data: { request_id: number; status: 'APPROVED' | 'REJECTED' }) =>
@@ -558,14 +561,6 @@ const OrderDetail = () => {
          </DialogActions>
       </Dialog>
    );
-
-   // Tính tổng tiền chưa thanh toán từ các yêu cầu gia hạn
-   const unpaidAmount = useMemo(() => {
-      if (!extendRequests?.data) return 0;
-      return extendRequests.data
-         .filter(req => req.request_status === 'APPROVED' && req.payment_status === 'UNPAID')
-         .reduce((sum, req) => sum + req.additional_price, 0);
-   }, [extendRequests?.data]);
 
    // Thêm section hiển thị yêu cầu gia hạn
    return (
