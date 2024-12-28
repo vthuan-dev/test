@@ -850,7 +850,7 @@ export const getAllOrders = async (req, res) => {
 
     const [orders] = await orderModel.connection.promise().query(query);
 
-    // Cập nhật total_money n���u khác với calculated_total
+    // Cập nhật total_money nếu khác với calculated_total
     for (const order of orders) {
       if (order.total_money !== order.calculated_total) {
         await orderModel.connection.promise().query(
@@ -1201,6 +1201,10 @@ export const updateExtendPaymentStatus = async (req, res) => {
   try {
     const { request_id } = req.body;
 
+    if (!request_id) {
+      return responseError(res, { message: "Thiếu thông tin yêu cầu" });
+    }
+
     await connection.query(`
       UPDATE extend_room_requests 
       SET 
@@ -1213,6 +1217,7 @@ export const updateExtendPaymentStatus = async (req, res) => {
       message: "Đã cập nhật trạng thái thanh toán"
     });
   } catch (error) {
+    console.error("Update extend payment status error:", error);
     return responseError(res, error);
   }
 };

@@ -61,7 +61,7 @@ export const ORDER_STATUS = Object.freeze({
    CANCELLED: 'CANCELLED', // hủy
 });
 
-// Cấu trúc nhãn trạng thái đơn hàng bằng ti��ng Việt
+// Cấu trúc nhãn trạng thái đơn hàng bằng tiếng Việt
 export const ORDER_STATUS_LABELS = Object.freeze({
    PENDING: 'Đang chờ xác nhận',
    CONFIRMED: 'Đã xác nhận',
@@ -458,14 +458,18 @@ const OrderDetail = () => {
       },
    });
 
-   // Thêm mutation cho việc cập nhật trạng thái thanh toán
+   // Thêm mutation cho update payment
    const { mutate: updatePaymentStatus } = useMutation({
-      mutationFn: (request_id: number) =>
-         putRequest(`/order/extend-payment/${request_id}`),
+      mutationFn: (requestId: number) => 
+         putRequest('/order/extend-payment', { request_id: requestId }),
       onSuccess: () => {
-         queryClient.invalidateQueries(['extendRequests', id]);
          toast.success('Đã cập nhật trạng thái thanh toán');
+         queryClient.invalidateQueries(['extend-requests', id]);
       },
+      onError: (error: any) => {
+         toast.error('Lỗi khi cập nhật trạng thái thanh toán');
+         console.error('Update payment status error:', error);
+      }
    });
 
    // Thêm component ExtendRequestDialog

@@ -28,6 +28,8 @@ router.get("/extend-requests/:order_id", orderController.getExtendRequests);
 
 router.get("/pending-extend-requests", orderController.getPendingExtendRequests);
 
+router.put("/extend-payment", orderController.updateExtendPaymentStatus);
+
 // router.get("/detail/:id", orderController.getDetailById);
 // router.get("/get-one-order-by-user-id/:id", orderController.getOrderByUserId);
 
