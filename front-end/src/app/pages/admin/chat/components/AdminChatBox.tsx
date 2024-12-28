@@ -158,6 +158,18 @@ export const AdminChatBox = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Luôn focus vào input khi component mount hoặc conversation thay đổi
+  useEffect(() => {
+    focusInput();
+  }, [conversation?.id]);
+
+  // Hàm focus input
+  const focusInput = () => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
   const handleSend = async () => {
     if (!message.trim() || !conversation?.id) return;
     
@@ -170,19 +182,17 @@ export const AdminChatBox = ({
         conversation_id: conversation.id,
         sender_id: currentUser.id,
         message: messageText,
-        username: currentUser.username,
-        created_at: new Date().toISOString()
+        username: currentUser.username
       };
 
       const response = await chatService.sendMessage(messageData);
 
       if (response.isSuccess) {
-        // Emit socket event immediately
         socket.emit('send_message', {
           ...messageData,
-          id: response.data.id
+          id: response.data.id,
+          created_at: new Date().toISOString()
         });
-        
         onMessageSent();
       }
     } catch (error) {
@@ -190,9 +200,16 @@ export const AdminChatBox = ({
       setMessage(messageText);
     } finally {
       setLoading(false);
+      // Focus lại input sau khi hoàn thành
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 0);
     }
   };
 
+  // Xử lý phím Enter
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -419,6 +436,16 @@ export const AdminChatBox = ({
                 )}
               </IconButton>
             ),
+          }}
+          onBlur={(e) => {
+            // Prevent losing focus
+            e.preventDefault();
+            focusInput();
+          }}
+          onClick={(e) => {
+            // Ensure focus when clicking on input
+            e.stopPropagation();
+            focusInput();
           }}
         />
       </Box>
