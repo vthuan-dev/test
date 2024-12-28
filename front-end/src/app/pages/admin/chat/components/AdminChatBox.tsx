@@ -160,7 +160,7 @@ export const AdminChatBox = ({
 
   const handleSend = async () => {
     if (!message.trim() || !conversation?.id) return;
-
+    
     const messageText = message.trim();
     setMessage('');
     setLoading(true);
@@ -170,34 +170,26 @@ export const AdminChatBox = ({
         conversation_id: conversation.id,
         sender_id: currentUser.id,
         message: messageText,
-        username: currentUser.username
+        username: currentUser.username,
+        created_at: new Date().toISOString()
       };
 
       const response = await chatService.sendMessage(messageData);
-      
+
       if (response.isSuccess) {
-        const newMessage = {
-          id: response.data.id,
+        // Emit socket event immediately
+        socket.emit('send_message', {
           ...messageData,
-          created_at: new Date().toISOString(),
-          is_read: false
-        };
+          id: response.data.id
+        });
         
-        socket.emit('send_message', newMessage);
-        setLocalMessages(prev => [...prev, newMessage]);
         onMessageSent();
-        scrollToBottom();
       }
     } catch (error) {
       console.error('Error sending message:', error);
       setMessage(messageText);
     } finally {
       setLoading(false);
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.focus();
-        }
-      }, 0);
     }
   };
 
@@ -207,6 +199,12 @@ export const AdminChatBox = ({
       handleSend();
     }
   };
+
+  useEffect(() => {
+    if (conversation?.id) {
+      socket.emit('join_conversation', conversation.id);
+    }
+  }, [conversation?.id, socket]);
 
   return (
     <Box sx={{ 

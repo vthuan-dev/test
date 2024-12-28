@@ -43,48 +43,43 @@ export const AdminChatList: React.FC<AdminChatListProps> = ({
 
   useEffect(() => {
     if (socket) {
-      socket.on('new_message', (message) => {
-        const updatedConversations = conversations.map(conv => {
+      // Lắng nghe tin nhắn mới để cập nhật unread_count
+      const handleNewMessage = (message) => {
+        console.log('New message in list:', message);
+        onConversationsUpdate(prev => prev.map(conv => {
           if (conv.id === message.conversation_id) {
             return {
               ...conv,
               last_message: message.message,
               last_message_time: message.created_at,
-              unread_count: selectedConversation?.id === conv.id ? 0 : conv.unread_count + 1
+              unread_count: selectedConversation?.id === conv.id ? 0 : (conv.unread_count || 0) + 1
             };
           }
           return conv;
-        });
-        
-        onConversationsUpdate(updatedConversations);
-      });
+        }));
+      };
+
+      // Lắng nghe sự kiện đọc tin nhắn
+      const handleMessagesRead = ({ conversation_id }) => {
+        onConversationsUpdate(prev => prev.map(conv => 
+          conv.id === conversation_id 
+            ? { ...conv, unread_count: 0 }
+            : conv
+        ));
+      };
+
+      socket.on('new_message', handleNewMessage);
+      socket.on('messages_read', handleMessagesRead);
 
       return () => {
-        socket.off('new_message');
+        socket.off('new_message', handleNewMessage);
+        socket.off('messages_read', handleMessagesRead);
       };
     }
-  }, [conversations, selectedConversation, socket]);
-
-  useEffect(() => {
-    if (socket) {
-      socket.on('messages_read', ({ conversation_id }) => {
-        // Cập nhật unread_count của conversation
-        onConversationsUpdate(
-          conversations.map(conv => 
-            conv.id === conversation_id 
-              ? { ...conv, unread_count: 0 }
-              : conv
-          )
-        );
-      });
-
-      return () => {
-        socket.off('messages_read');
-      };
-    }
-  }, [socket, conversations]);
+  }, [socket, selectedConversation]);
 
   const handleSelectConversation = (conversation: Conversation) => {
+    if (conversation.id === selectedConversation?.id) return;
     onSelectConversation(conversation);
   };
 
@@ -145,24 +140,50 @@ export const AdminChatList: React.FC<AdminChatListProps> = ({
               width: '100%'
             }}>
               {/* Avatar */}
-              <Box sx={{
-                width: 45,
-                height: 45,
-                borderRadius: '50%',
-                background: 'linear-gradient(45deg, #FF6B6B, #4ECDC4)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.2rem',
-                color: '#fff',
-                fontWeight: 'bold',
-                border: '2px solid rgba(255,255,255,0.1)'
-              }}>
-                {conversation.user_name?.[0]?.toUpperCase()}
+              <Box sx={{ position: 'relative' }}>
+                <Box sx={{
+                  width: 45,
+                  height: 45,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(45deg, #FF6B6B, #4ECDC4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.2rem',
+                  color: '#fff',
+                  fontWeight: 'bold'
+                }}>
+                  {conversation.user_name?.[0]?.toUpperCase()}
+                </Box>
+                
+                {/* Unread count badge */}
+                {conversation.unread_count > 0 && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: -5,
+                      right: -5,
+                      backgroundColor: '#00ff88',
+                      color: '#000',
+                      borderRadius: '50%',
+                      width: 20,
+                      height: 20,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.75rem',
+                      fontWeight: 'bold',
+                      border: '2px solid #141728',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                    }}
+                  >
+                    {conversation.unread_count}
+                  </Box>
+                )}
               </Box>
 
               {/* Content */}
-              <Box sx={{ flex: 1 }}>
+              <Box sx={{ flex: 1, overflow: 'hidden' }}>
                 <Typography 
                   sx={{ 
                     fontWeight: 600,
