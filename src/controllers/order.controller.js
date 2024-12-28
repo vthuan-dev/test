@@ -888,15 +888,16 @@ export const getAllOrders = async (req, res) => {
 };
 
 export const extendRoomTime = async (req, res) => {
+  const connection = await orderModel.connection.promise();
   try {
     const { room_order_id, additional_hours } = req.body;
-    const connection = await orderModel.connection.promise();
 
     // 1. Lấy thông tin phòng và kiểm tra
     const [roomDetails] = await connection.query(`
       SELECT 
         rod.*,
         r.price as room_price,
+        r.room_name,
         o.id as order_id,
         u.is_vip,
         u.vip_end_date
@@ -956,6 +957,13 @@ export const extendRoomTime = async (req, res) => {
 
       await connection.commit();
 
+      // Emit socket event sau khi tạo yêu cầu thành công
+      req.io.emit("new_extend_request", {
+        room_name: roomDetail.room_name,
+        order_id: roomDetail.order_id,
+        created_at: new Date()
+      });
+
       return responseSuccess(res, {
         message: "Đã gửi yêu cầu gia hạn",
         data: {
@@ -978,6 +986,7 @@ export const extendRoomTime = async (req, res) => {
     }
 
   } catch (error) {
+    await connection.rollback();
     console.error("Error in extendRoomTime:", error);
     return responseError(res, error);
   }
@@ -1146,6 +1155,13 @@ export const getExtendRequests = async (req, res) => {
     const connection = await orderModel.connection.promise();
 
     const [requests] = await connection.query(`
+      WITH unpaid_total AS (
+        SELECT SUM(additional_price) as total_unpaid_amount
+        FROM extend_room_requests
+        WHERE order_id = ?
+        AND request_status = 'APPROVED'
+        AND payment_status = 'UNPAID'
+      )
       SELECT 
         er.id,
         er.room_order_id,
@@ -1156,18 +1172,26 @@ export const getExtendRequests = async (req, res) => {
         er.payment_status,
         rod.start_time,
         rod.end_time,
-        r.room_name
+        r.room_name,
+        ut.total_unpaid_amount
       FROM extend_room_requests er
       JOIN room_order_detail rod ON er.room_order_id = rod.id
       JOIN room r ON rod.room_id = r.id
-      WHERE rod.order_id = ?
-    `, [order_id]);
+      CROSS JOIN unpaid_total ut
+      WHERE er.order_id = ?
+      ORDER BY er.created_at DESC
+    `, [order_id, order_id]);
+
+    // Lấy tổng số tiền chưa thanh toán từ kết quả đầu tiên
+    const unpaidAmount = requests.length > 0 ? requests[0].total_unpaid_amount || 0 : 0;
 
     return responseSuccess(res, {
       message: "Lấy danh sách yêu cầu gia hạn thành công",
-      data: requests
+      data: requests,
+      unpaidAmount: unpaidAmount
     });
   } catch (error) {
+    console.error("Get extend requests error:", error);
     return responseError(res, error);
   }
 };
@@ -1189,6 +1213,32 @@ export const updateExtendPaymentStatus = async (req, res) => {
       message: "Đã cập nhật trạng thái thanh toán"
     });
   } catch (error) {
+    return responseError(res, error);
+  }
+};
+
+export const getPendingExtendRequests = async (req, res) => {
+  try {
+    const [requests] = await orderModel.connection.promise().query(`
+      SELECT 
+        er.*,
+        r.room_name,
+        o.id as order_id
+      FROM extend_room_requests er
+      JOIN room_order_detail rod ON er.room_order_id = rod.id
+      JOIN room r ON rod.room_id = r.id
+      JOIN orders o ON er.order_id = o.id
+      WHERE er.request_status = 'PENDING'
+      ORDER BY er.created_at DESC
+    `);
+
+    return responseSuccess(res, {
+      message: "Lấy danh sách yêu cầu gia hạn thành công",
+      data: requests
+    });
+
+  } catch (error) {
+    console.error("Get pending extend requests error:", error);
     return responseError(res, error);
   }
 };

@@ -93,6 +93,12 @@ io.on("connection", (socket) => {
     socket.to(`conversation_${conversation_id}`).emit("user_stop_typing");
   });
 
+  // Thêm handler cho extend request
+  socket.on("extend_request", (data) => {
+    // Broadcast to all admins
+    io.emit("new_extend_request", data);
+  });
+
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
   });

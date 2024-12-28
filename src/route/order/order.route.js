@@ -26,6 +26,8 @@ router.post("/approve-extend-room", orderController.approveExtendRoom);
 
 router.get("/extend-requests/:order_id", orderController.getExtendRequests);
 
+router.get("/pending-extend-requests", orderController.getPendingExtendRequests);
+
 // router.get("/detail/:id", orderController.getDetailById);
 // router.get("/get-one-order-by-user-id/:id", orderController.getOrderByUserId);
 
