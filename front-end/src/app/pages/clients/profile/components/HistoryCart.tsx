@@ -111,6 +111,16 @@ const styles = {
    },
 };
 
+// Hàm format tiền
+const formatCurrency = (amount: number) => {
+   return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+   }).format(amount);
+};
+
 const HistoryCart = () => {
    const { user } = useAuth();
    const [openModal, setOpenModal] = useState(false);
@@ -378,10 +388,7 @@ const HistoryCart = () => {
                            {new Date(order.order_date).toLocaleDateString('vi-VN')}
                         </TableCell>
                         <TableCell sx={{ fontWeight: 'medium', color: 'success.main' }}>
-                           {order.total_money.toLocaleString('vi-VN', { 
-                              style: 'currency', 
-                              currency: 'VND' 
-                           })}
+                           {formatCurrency(order.total_money)}
                         </TableCell>
                         <TableCell>
                            <Chip
@@ -455,7 +462,7 @@ const HistoryCart = () => {
                   justifyContent: 'space-between'
                }}>
                   <Typography variant="h6">
-                     Chi tiết đơn h��ng #{selectedOrder?.id}
+                     Chi tiết đơn hàng #{selectedOrder?.id}
                   </Typography>
                   <IconButton onClick={handleCloseModal} sx={{ color: 'white' }}>
                      <CloseIcon />
@@ -478,7 +485,7 @@ const HistoryCart = () => {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                            <PaymentIcon color="action" />
                            <Typography>
-                              Tổng tiền: {selectedOrder?.total_money.toLocaleString('vi-VN')}đ
+                              Tổng tiền: {selectedOrder && formatCurrency(selectedOrder.total_money)}
                            </Typography>
                         </Box>
                      </Grid>
@@ -564,9 +571,9 @@ const HistoryCart = () => {
                                           </Box>
                                        </TableCell>
                                        <TableCell align="center">{product.quantity}</TableCell>
-                                       <TableCell align="right">{product.price.toLocaleString('vi-VN')}đ</TableCell>
+                                       <TableCell align="right">{formatCurrency(product.price)}</TableCell>
                                        <TableCell align="right">
-                                          {(product.quantity * product.price).toLocaleString('vi-VN')}đ
+                                          {formatCurrency(product.quantity * product.price)}
                                        </TableCell>
                                     </TableRow>
                                  ))}
