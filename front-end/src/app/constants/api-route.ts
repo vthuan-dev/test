@@ -34,7 +34,8 @@ const API_ROUTE = {
    STATISTIC_TOTAL_REVENUE:"order/statistic-revenue",
 
    // payment
-   SAVE_PAYMENT :"order/save-payment"
+   SAVE_PAYMENT :"order/save-payment",
+   STATISTIC_ROOM_DETAIL:"order/statistic-room-detail"
 };
 
 export { API_ROUTE };

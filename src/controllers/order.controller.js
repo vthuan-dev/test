@@ -1067,7 +1067,7 @@ export const approveExtendRoom = async (req, res) => {
     `, [request_id]);
 
     if (!requests.length) {
-      return responseError(res, { message: "Kh��ng tìm thấy yêu cầu gia hạn hoặc yêu cầu đã được xử lý" });
+      return responseError(res, { message: "Không tìm thấy yêu cầu gia hạn hoặc yêu cầu đã được xử lý" });
     }
 
     const request = requests[0];
@@ -1096,7 +1096,7 @@ export const approveExtendRoom = async (req, res) => {
         WHERE id = ?
       `, [newEndTime, totalHours, totalPrice, request.room_order_id]);
 
-      // Cập nhật tổng tiền orders (bao gồm cả sản phẩm)
+      // Cập nhật tổng tiền orders (bao g���m cả sản phẩm)
       await connection.query(`
         UPDATE orders o
         SET total_money = (
@@ -1241,6 +1241,77 @@ export const getPendingExtendRequests = async (req, res) => {
 
   } catch (error) {
     console.error("Get pending extend requests error:", error);
+    return responseError(res, error);
+  }
+};
+
+export const statisticRoomDetail = async (req, res) => {
+  try {
+    const connection = await orderModel.connection.promise();
+    
+    const query = `
+      SELECT 
+        r.id AS room_id,
+        r.room_name,
+        r.status AS room_status,
+        COUNT(DISTINCT rod.order_id) AS total_bookings, -- Đếm tất cả lượt đặt
+        COALESCE(SUM(rod.total_time), 0) AS total_hours,
+        COALESCE(SUM(rod.total_price), 0) AS total_revenue,
+        (
+          SELECT 
+            CONCAT(
+              DATE_FORMAT(rod2.start_time, '%H:%i %d/%m/%Y'),
+              ' - ',
+              DATE_FORMAT(rod2.end_time, '%H:%i %d/%m/%Y')
+            )
+          FROM room_order_detail rod2
+          JOIN orders o2 ON rod2.order_id = o2.id
+          WHERE rod2.room_id = r.id 
+          AND o2.status = 'CHECKED_IN'
+          AND NOW() BETWEEN rod2.start_time AND rod2.end_time
+          LIMIT 1
+        ) AS current_booking
+      FROM room r
+      LEFT JOIN room_order_detail rod ON r.id = rod.room_id
+      LEFT JOIN orders o ON rod.order_id = o.id
+      GROUP BY r.id, r.room_name, r.status
+      ORDER BY total_bookings DESC; -- Sắp xếp theo số lượt đặt
+    `;
+
+    const [statistics] = await connection.query(query);
+
+    const formattedStats = statistics.map(stat => ({
+      ...stat,
+      total_revenue: Number(stat.total_revenue) || 0,
+      total_hours: Number(stat.total_hours) || 0,
+      total_bookings: Number(stat.total_bookings) || 0,
+      current_status: stat.current_booking ? 'Đang sử dụng' : 
+                     (stat.room_status === 'AVAILABLE' ? 'Trống' : 'Không khả dụng')
+    }));
+
+    // Tính toán phần trăm
+    const totalRevenue = formattedStats.reduce((sum, stat) => sum + stat.total_revenue, 0);
+    const totalBookings = formattedStats.reduce((sum, stat) => sum + stat.total_bookings, 0);
+
+    formattedStats.forEach(stat => {
+      stat.revenue_percentage = totalRevenue ? ((stat.total_revenue / totalRevenue) * 100).toFixed(2) : "0.00";
+      stat.booking_percentage = totalBookings ? ((stat.total_bookings / totalBookings) * 100).toFixed(2) : "0.00";
+    });
+
+    return responseSuccess(res, {
+      message: "Lấy thống kê chi tiết phòng thành công",
+      data: {
+        statistics: formattedStats,
+        summary: {
+          total_revenue: totalRevenue,
+          total_bookings: totalBookings,
+          total_rooms: formattedStats.length
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error("Statistic room detail error:", error);
     return responseError(res, error);
   }
 };
