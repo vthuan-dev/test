@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
+import { toast } from 'react-toastify';
 import { useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 
 const PaymentCallback = () => {
    const navigate = useNavigate();
@@ -10,43 +11,45 @@ const PaymentCallback = () => {
    useEffect(() => {
       const handlePaymentResult = async () => {
          try {
-            // Lấy thông tin từ URL callback
             const urlParams = new URLSearchParams(window.location.search);
             const responseCode = urlParams.get('vnp_ResponseCode');
-            const orderId = urlParams.get('vnp_TxnRef');
+            
+            if (!responseCode) {
+               throw new Error('Không nhận được mã phản hồi từ cổng thanh toán');
+            }
 
-            // Đợi API xác thực thanh toán hoàn tất
-            const response = await fetch(
-               `${process.env.REACT_APP_API_URL}/order/payment/callback/vnpay_return${window.location.search}`
-            );
-            const data = await response.json();
+            console.log('Payment callback params:', Object.fromEntries(urlParams));
 
-            if (responseCode === '00' && data.success) {
-               // Đợi cập nhật trạng thái hoàn tất
-               await fetch(`${process.env.REACT_APP_API_URL}/order/update/${orderId}`, {
-                  method: 'PUT',
+            const response = await axios.get(
+               `${process.env.REACT_APP_API_URL}/api/order/payment/callback/vnpay_return`,
+               {
+                  params: Object.fromEntries(urlParams),
+                  withCredentials: true,
                   headers: {
                      'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                     status: 'CONFIRMED',
-                     payment_status: 'PAID'
-                  })
-               });
+                     'Accept': 'application/json'
+                  }
+               }
+            );
 
-               // Refresh lại dữ liệu
+            console.log('Payment callback response:', response.data);
+
+            if (response.data.success) {
                await queryClient.invalidateQueries(['orders']);
-               
-               toast.success('Thanh toán thành công!');
-               navigate('/orders');
+               toast.success('Thanh toán thành công! Đơn hàng của bạn đã được xác nhận.');
+               setTimeout(() => navigate('/orders'), 2000);
             } else {
-               toast.error('Thanh toán thất bại!');
-               navigate('/cart');
+               throw new Error(response.data.message || 'Thanh toán thất bại');
             }
+
          } catch (error) {
-            console.error('Lỗi callback thanh toán:', error);
-            toast.error('Có lỗi xảy ra khi xử lý thanh toán');
-            navigate('/cart');
+            console.error('Payment callback error:', error);
+            toast.error(
+               error?.response?.data?.message || 
+               error.message || 
+               'Có lỗi xảy ra trong quá trình xử lý thanh toán!'
+            );
+            setTimeout(() => navigate('/cart'), 2000);
          }
       };
 
@@ -54,8 +57,16 @@ const PaymentCallback = () => {
    }, [navigate, queryClient]);
 
    return (
-      <div style={{ textAlign: 'center', marginTop: '50px' }}>
+      <div style={{ 
+         textAlign: 'center', 
+         marginTop: '50px',
+         padding: '20px',
+         backgroundColor: '#fff',
+         borderRadius: '8px',
+         boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+      }}>
          <h2>Đang xử lý kết quả thanh toán...</h2>
+         <p style={{ color: '#666' }}>Vui lòng không tắt hoặc làm mới trang.</p>
       </div>
    );
 };

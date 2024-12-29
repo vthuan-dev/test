@@ -59,30 +59,19 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, from, room
    const handleClose = (res: any) => {
       if (paymentMethod === 'card') {
          if (res && 'insertId' in res) {
-            orderIdRef.current.value = res.insertId as number;
-            buttonSubmitRef.current && buttonSubmitRef.current.click();
-            toast.dismiss('payment-redirect');
-            setTimeout(() => {
-               toast.success('Đang chuyển đến trang thanh toán...', {
-                  toastId: 'payment-redirect',
-                  position: "top-right",
-                  autoClose: 3000,
-                  hideProgressBar: false,
-               });
-            }, 100);
+            if (orderIdRef.current) {
+               orderIdRef.current.value = res.insertId;
+            }
+            if (buttonSubmitRef.current) {
+               buttonSubmitRef.current.click();
+            }
          }
       } else {
-         toast.dismiss('payment-cash-success');
-         setTimeout(() => {
-            toast.success('Đơn hàng đã được tạo thành công!', {
-               toastId: 'payment-cash-success',
-               position: "top-right",
-               autoClose: 3000,
-               hideProgressBar: false,
-            });
-         }, 100);
+         toast.success('Đơn hàng đã được tạo thành công!', {
+            position: "top-right",
+            autoClose: 3000,
+         });
       }
-
       onClose();
       from.reset();
    };
@@ -115,43 +104,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, from, room
       }
    };
 
-   const onSubmitForm: SubmitHandler<PaymentModalType> = (data) => {
-      priceRef.current = data.total_money;
+   const onSubmitForm: SubmitHandler<PaymentModalType> = async (data) => {
+      try {
+         priceRef.current = data.total_money;
 
-      // Initialize an array to track any validation errors
-      let hasError = false;
-
-      const roomsToSubmit = data.rooms.map((room, index) => {
-         const roomTimeline = dataRoomOrderTimeline?.find((timeline: any) => {
-            return Number(timeline.room_id) === Number(room.room_id);
-         });
-
-         if (roomTimeline) {
-            const roomStartTime = dayjs(room.start_time).utc();
-            const roomEndTime = dayjs(room.end_time).utc();
-            const roomTimelineStartTime = dayjs(roomTimeline.start_time).utc();
-            const roomTimelineEndTime = dayjs(roomTimeline.end_time).utc();
-
-            const isTimeOverlap =
-               roomStartTime.isBefore(roomTimelineEndTime) && roomEndTime.isAfter(roomTimelineStartTime);
-
-            if (isTimeOverlap) {
-               setError(`rooms[${index}].start_time` as never, {
-                  type: 'manual',
-                  message: `Thời gian của phòng ${room.room_id} trùng với một đơn đặt phòng đã có.`,
-               });
-               hasError = true;
-            }
+         if (from.formState.errors && Object.keys(from.formState.errors).length > 0) {
+            return;
          }
 
-         return room; // Keep the room object in the map to submit
-      });
-
-      // If there are any validation errors, do not proceed with mutation
-      if (hasError) {
-         return console.log('There is an overlap in room times');
-      } else {
-         // Perform the mutation if no errors
          mutate({
             ...data,
             payment_method: paymentMethod === 'cash' ? 1 : 2,
@@ -165,18 +125,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, from, room
             email: user?.email,
             order_date: '',
          } as any);
+      } catch (error) {
+         console.error('Submit error:', error);
+         toast.error('Có lỗi xảy ra khi xử lý đơn hàng');
       }
    };
 
-   const actionPaymentUrl = SETTINGS_CONFIG.API_URL + '/order/payment/create';
-   console.log('from.formState.errors', from.formState.errors);
    return (
-      <Modal
-         open={isOpen}
-         onClose={handleClose}
-         aria-labelledby="modal-modal-title"
-         aria-describedby="modal-modal-description"
-      >
+      <Modal open={isOpen} onClose={onClose}>
          <Box sx={style}>
             <Typography variant="h5" p={2}>
                Thông tin đặt phòng
@@ -249,28 +205,26 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, from, room
                      </RadioGroup>
                   </Box>
                   <Box display="flex" justifyContent="end" gap={2} mt={3}>
-                     <Button variant="outlined" color="error" onClick={handleClose}>
+                     <Button variant="outlined" color="error" onClick={onClose}>
                         Hủy
                      </Button>
-                     <Button
-                        type="submit"
-                        variant="contained"
-                        onClick={() => {
-                           /* Logic xác nhận */
-                           from.handleSubmit(onSubmitForm);
-                        }}
-                     >
+                     <Button type="submit" variant="contained">
                         Xác nhận
                      </Button>
                   </Box>
                </Box>
             </form>
-            <Box component="form" sx={{ visibility: 'hidden', opacity: 0 }} action={actionPaymentUrl} method="post">
-               <input name="amount" type="number" value={priceRef.current} />
-               <input type="text" name="orderId" ref={orderIdRef} />
-               <button ref={buttonSubmitRef} type="submit">
-                  purchase
-               </button>
+            
+            <Box 
+               component="form" 
+               sx={{ visibility: 'hidden', position: 'absolute' }} 
+               action={`${process.env.REACT_APP_API_URL}/api/order/payment/create`}
+               method="POST"
+               target="_blank"
+            >
+               <input name="amount" type="number" value={priceRef.current} readOnly />
+               <input type="text" name="orderId" ref={orderIdRef} readOnly />
+               <button ref={buttonSubmitRef} type="submit">purchase</button>
             </Box>
          </Box>
       </Modal>

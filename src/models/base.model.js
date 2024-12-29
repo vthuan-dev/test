@@ -125,27 +125,49 @@ class BaseModel {
   }
 
   // update
-  async update(columnName, columnValue, data) {
+  async update(id, data) {
     return new Promise((resolve, reject) => {
-      const updates = Object.keys(data).map((field) => `${field} = ?`);
-
-      const toStringUpdates = updates.join(", ");
-
-      const values = Object.values(data);
-      const query = `UPDATE ${this.table} SET ${toStringUpdates} WHERE ${columnName} = ?`;
-
-      this.connection.query(
-        query,
-        [...values, columnValue],
-        (error, result) => {
-          if (error) {
-            reject(error);
-          } else if (result && result?.affectedRows !== 0) {
-            resolve(result);
-          }
-          reject(new ErrorHandler(STATUS.BAD_REQUEST, "Cập nhật thất bại"));
+      try {
+        if (!id || !data || typeof data !== 'object') {
+          return reject(new ErrorHandler(STATUS.BAD_REQUEST, "ID và dữ liệu cập nhật là bắt buộc"));
         }
-      );
+
+        const validUpdates = {};
+        this.fillable.forEach(field => {
+          if (data[field] !== undefined) {
+            validUpdates[field] = data[field];
+          }
+        });
+
+        if (Object.keys(validUpdates).length === 0) {
+          return reject(new ErrorHandler(STATUS.BAD_REQUEST, "Không có trường hợp lệ để cập nhật"));
+        }
+
+        const updates = Object.keys(validUpdates).map(field => `${field} = ?`);
+        const values = Object.values(validUpdates);
+        
+        const query = `UPDATE ${this.table} SET ${updates.join(", ")} WHERE id = ?`;
+
+        this.connection.query(
+          query,
+          [...values, id],
+          (error, result) => {
+            if (error) {
+              console.error("Update error:", error);
+              return reject(error);
+            }
+
+            if (result && result.affectedRows > 0) {
+              return resolve(result);
+            }
+
+            reject(new ErrorHandler(STATUS.BAD_REQUEST, "Không tìm thấy bản ghi để cập nhật"));
+          }
+        );
+      } catch (error) {
+        console.error("Update method error:", error);
+        reject(error);
+      }
     });
   }
 
