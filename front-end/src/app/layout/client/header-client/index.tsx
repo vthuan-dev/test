@@ -13,7 +13,7 @@ import {
    OutlinedInput,
    Stack,
    styled,
-   Tooltip,
+   Tooltip
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import LoginIcon from '@mui/icons-material/Login';
@@ -28,6 +28,7 @@ import { ROUTE_PATH } from '@constants';
 import useAuth from '~/app/redux/slices/auth.slice';
 import { USER_TYPE } from '~/app/routes/components/user-type';
 import { images } from '@assets/images';
+import { toast } from 'react-toastify';
 
 export const HeaderClient = () => {
    const navigate = useNavigate();
@@ -50,8 +51,11 @@ export const HeaderClient = () => {
    };
 
    const handleClickLogout = () => {
+      navigate(ROUTE_PATH.SIGN_IN);
       handleClose();
+
       authLogout();
+      toast.success('Đăng xuất thành công!');
    };
 
    return (

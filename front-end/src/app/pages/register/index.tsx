@@ -36,7 +36,7 @@ const Register = () => {
             pauseOnHover: true,
             draggable: true,
          });
-         navigate('/login');
+         navigate(ROUTE_PATH.SIGN_IN);
       },
       onError: (error: any) => {
          if (error.response?.data?.message === "Email đã được sử dụng") {

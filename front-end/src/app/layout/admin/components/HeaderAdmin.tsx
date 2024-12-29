@@ -129,7 +129,8 @@ const HeaderAdmin = () => {
 
    const handleLogout = () => {
       authLogout();
-      navigate('/sign-in');
+      navigate(ROUTE_PATH.SIGN_IN);
+
    };
 
    const unviewedCount = pendingRequests?.data?.filter(
