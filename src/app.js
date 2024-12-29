@@ -100,6 +100,18 @@ io.on("connection", (socket) => {
     io.emit("new_extend_request", data);
   });
 
+  // Handle joining rooms
+  socket.on('join_room', (room) => {
+    console.log(`Socket ${socket.id} joining room: ${room}`);
+    socket.join(room);
+  });
+
+  // Handle leaving rooms
+  socket.on('leave_room', (room) => {
+    console.log(`Socket ${socket.id} leaving room: ${room}`);
+    socket.leave(room);
+  });
+
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
   });

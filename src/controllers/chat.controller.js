@@ -11,10 +11,14 @@ export const createConversation = async (req, res) => {
     
     // Kiểm tra cuộc hội thoại active hiện có
     const [existingConversation] = await conn.query(
-      `SELECT c.*, u.username, 
+      `SELECT c.*, u.username, u.user_type,
         (SELECT message FROM messages 
          WHERE conversation_id = c.id 
-         ORDER BY created_at DESC LIMIT 1) as last_message
+         ORDER BY created_at DESC LIMIT 1) as last_message,
+        (SELECT created_at 
+         FROM messages 
+         WHERE conversation_id = c.id 
+         ORDER BY created_at DESC LIMIT 1) as last_message_time
        FROM conversations c
        JOIN user u ON c.user_id = u.id 
        WHERE c.user_id = ? AND c.status = 'ACTIVE'`,
@@ -31,7 +35,7 @@ export const createConversation = async (req, res) => {
 
     // Tìm admin có ít cuộc hội thoại active nhất
     const [availableAdmin] = await conn.query(`
-      SELECT u.id 
+      SELECT u.id, u.username, u.user_type
       FROM user u
       LEFT JOIN conversations c ON u.id = c.admin_id AND c.status = 'ACTIVE'
       WHERE u.user_type = 1
@@ -40,27 +44,59 @@ export const createConversation = async (req, res) => {
       LIMIT 1
     `);
 
-    // Tạo cuộc hội thoại mới
-    const [result] = await conn.query(
-      `INSERT INTO conversations (user_id, admin_id) VALUES (?, ?)`,
-      [user_id, availableAdmin[0]?.id]
+    if (!availableAdmin.length) {
+      await conn.rollback();
+      return responseError(res, {
+        message: "Không tìm thấy admin"
+      });
+    }
+
+    // Lấy thông tin user
+    const [userInfo] = await conn.query(
+      `SELECT username, user_type FROM user WHERE id = ?`,
+      [user_id]
     );
 
-    const data = {
+    // Tạo cuộc hội thoại mới
+    const [result] = await conn.query(
+      `INSERT INTO conversations (user_id, admin_id, status) VALUES (?, ?, 'ACTIVE')`,
+      [user_id, availableAdmin[0].id]
+    );
+
+    const conversationData = {
       id: result.insertId,
       user_id,
-      admin_id: availableAdmin[0]?.id,
+      admin_id: availableAdmin[0].id,
       status: 'ACTIVE',
-      created_at: new Date()
+      created_at: new Date(),
+      username: userInfo[0]?.username,
+      user_type: userInfo[0]?.user_type,
+      user_name: userInfo[0]?.username, // Thêm trường này để đồng bộ với frontend
+      last_message: null,
+      last_message_time: null,
+      unread_count: 0
     };
 
     await conn.commit();
+
+    // Emit socket event cho admin
+    if (req.io) {
+      req.io.to('admin_room').emit('new_conversation', {
+        ...conversationData,
+        user_name: userInfo[0]?.username,
+        unread_count: 0,
+        last_message: null,
+        last_message_time: null
+      });
+    }
+
     return responseSuccess(res, {
       message: "Tạo cuộc hội thoại thành công",
-      data
+      data: conversationData
     });
   } catch (error) {
     await conn.rollback();
+    console.error('Error in createConversation:', error);
     return responseError(res, error);
   }
 };
@@ -169,50 +205,68 @@ export const getMessages = async (req, res) => {
 export const getConversations = async (req, res) => {
   const conn = await connection.promise();
   try {
-    // Lấy params từ query string
     const user_id = Number(req.query.user_id);
     const user_type = Number(req.query.user_type);
 
-    if (!user_id || !user_type) {
-      return responseError(res, {
-        message: "Thiếu thông tin user_id hoặc user_type"
-      });
-    }
+    console.log('Getting conversations for:', { user_id, user_type });
 
     let baseQuery = `
       SELECT 
         c.*,
         u.username as user_name,
         u.user_type,
-        (SELECT COUNT(*) 
-         FROM messages m 
-         WHERE m.conversation_id = c.id 
-         AND m.is_read = 0 
-         AND m.sender_id != ${conn.escape(user_id)}) as unread_count,
+        COALESCE(
+          (SELECT COUNT(*) 
+           FROM messages m 
+           WHERE m.conversation_id = c.id 
+           AND m.is_read = 0 
+           AND m.sender_id != ?), 0
+        ) as unread_count,
         (SELECT message 
          FROM messages m2 
          WHERE m2.conversation_id = c.id 
          ORDER BY m2.created_at DESC LIMIT 1) as last_message,
-        (SELECT created_at 
+        (SELECT DATE_FORMAT(created_at, '%Y-%m-%dT%H:%i:%s.000Z')
          FROM messages m3 
          WHERE m3.conversation_id = c.id 
          ORDER BY m3.created_at DESC LIMIT 1) as last_message_time
       FROM conversations c
-      JOIN user u ON c.user_id = u.id
+      LEFT JOIN user u ON c.user_id = u.id
       WHERE c.status = 'ACTIVE'
     `;
 
+    const queryParams = [user_id];
+
+    // Nếu là khách hàng (user_type = 2)
     if (user_type === 2) {
-      baseQuery += ` AND c.user_id = ${conn.escape(user_id)}`;
-    } else if (user_type === 1) {
-      baseQuery += ` AND (c.admin_id = ${conn.escape(user_id)} OR c.admin_id IS NULL)`;
+      baseQuery += ` AND c.user_id = ?`;
+      queryParams.push(user_id);
+    }
+    // Nếu là admin (user_type = 1)
+    else if (user_type === 1) {
+      // Admin thấy tất cả cuộc trò chuyện ACTIVE
+      // Không cần thêm điều kiện
     }
 
-    baseQuery += ` ORDER BY COALESCE(last_message_time, c.created_at) DESC`;
+    // Sắp xếp theo thời gian tin nhắn mới nhất hoặc thời gian tạo
+    baseQuery += ` 
+      ORDER BY 
+        COALESCE(
+          (SELECT created_at 
+           FROM messages m4 
+           WHERE m4.conversation_id = c.id 
+           ORDER BY m4.created_at DESC LIMIT 1),
+          c.created_at
+        ) DESC,
+        c.id DESC
+    `;
 
-    console.log('Query:', baseQuery);
+    console.log('Final Query:', baseQuery);
+    console.log('Query Params:', queryParams);
 
-    const [conversations] = await conn.query(baseQuery);
+    const [conversations] = await conn.query(baseQuery, queryParams);
+    
+    console.log(`Found ${conversations.length} conversations:`, conversations);
 
     return responseSuccess(res, {
       message: "Lấy danh sách hội thoại thành công",

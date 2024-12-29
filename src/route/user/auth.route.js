@@ -16,7 +16,7 @@ import verifyToken from "../../middlewares/authenticateToken";
 const authRoute = express.Router();
 
 authRoute.get("/", getAll);
-authRoute.post("/register", create);
+authRoute.post("/create", create);
 authRoute.post("/login", checkAuth, login);
 authRoute.post("/verifyToken", verifyToken, authorization);
 authRoute.get("/get-all-user", getAllUser);

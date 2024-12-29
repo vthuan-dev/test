@@ -19,32 +19,28 @@ export const AdminChatList: React.FC<AdminChatListProps> = ({
   loading,
   socket
 }) => {
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" height="100%">
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  // Debug log
-  console.log('Conversations in list:', conversations);
-
-  // Kiểm tra mảng conversations
-  if (!Array.isArray(conversations) || conversations.length === 0) {
-    return (
-      <Box p={2}>
-        <Typography variant="body2" color="text.secondary">
-          Không có cuộc hội thoại nào
-        </Typography>
-      </Box>
-    );
-  }
-
   useEffect(() => {
     if (socket) {
-      // Lắng nghe tin nhắn mới để cập nhật unread_count
-      const handleNewMessage = (message) => {
+      // Join admin room khi component mount
+      socket.emit('join_room', 'admin_room');
+      console.log('Admin joined room');
+
+      // Handle new conversation
+      const handleNewConversation = (newConversation: Conversation) => {
+        console.log('New conversation received:', newConversation);
+        onConversationsUpdate(prevConversations => {
+          // Kiểm tra xem conversation đã tồn tại chưa
+          const exists = prevConversations.some(conv => conv.id === newConversation.id);
+          if (!exists) {
+            // Thêm vào đầu danh sách
+            return [newConversation, ...prevConversations];
+          }
+          return prevConversations;
+        });
+      };
+
+      // Handle new message
+      const handleNewMessage = (message: any) => {
         console.log('New message in list:', message);
         onConversationsUpdate(prev => prev.map(conv => {
           if (conv.id === message.conversation_id) {
@@ -59,24 +55,42 @@ export const AdminChatList: React.FC<AdminChatListProps> = ({
         }));
       };
 
-      // Lắng nghe sự kiện đọc tin nhắn
-      const handleMessagesRead = ({ conversation_id }) => {
-        onConversationsUpdate(prev => prev.map(conv => 
-          conv.id === conversation_id 
-            ? { ...conv, unread_count: 0 }
-            : conv
-        ));
-      };
-
+      // Add event listeners
+      socket.on('new_conversation', handleNewConversation);
       socket.on('new_message', handleNewMessage);
-      socket.on('messages_read', handleMessagesRead);
 
+      // Cleanup
       return () => {
+        console.log('Cleaning up socket listeners');
+        socket.off('new_conversation', handleNewConversation);
         socket.off('new_message', handleNewMessage);
-        socket.off('messages_read', handleMessagesRead);
+        socket.emit('leave_room', 'admin_room');
       };
     }
-  }, [socket, selectedConversation]);
+  }, [socket, selectedConversation, onConversationsUpdate]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Debug logs
+  console.log('Current conversations:', conversations);
+
+  // Kiểm tra mảng conversations
+  if (!Array.isArray(conversations) || conversations.length === 0) {
+    return (
+      <Box p={2}>
+        <Typography variant="body2" color="text.secondary">
+          Không có cuộc hội thoại nào
+        </Typography>
+      </Box>
+    );
+  }
 
   const handleSelectConversation = (conversation: Conversation) => {
     if (conversation.id === selectedConversation?.id) return;

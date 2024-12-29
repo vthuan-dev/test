@@ -68,7 +68,18 @@ const AdminChat = () => {
     if (user?.id) {
       fetchConversations();
       
-      // Socket events
+      // Thêm listener cho new_conversation
+      socket.on('new_conversation', (newConversation) => {
+        console.log('New conversation received in AdminChat:', newConversation);
+        setConversations(prev => {
+          const exists = prev.some(conv => conv.id === newConversation.id);
+          if (!exists) {
+            return [newConversation, ...prev];
+          }
+          return prev;
+        });
+      });
+      
       socket.on('new_message', handleNewMessage);
       socket.on('messages_read', handleMessagesRead);
       socket.on('conversation_closed', handleConversationClosed);
@@ -79,6 +90,7 @@ const AdminChat = () => {
       });
 
       return () => {
+        socket.off('new_conversation');
         socket.off('new_message');
         socket.off('messages_read');
         socket.off('conversation_closed');
@@ -176,6 +188,10 @@ const AdminChat = () => {
     }
   }, [selectedConversation]);
 
+  const handleConversationsUpdate = (updater: (prev: Conversation[]) => Conversation[]) => {
+    setConversations(prev => updater(prev));
+  };
+
   if (!user) {
     return (
       <Box 
@@ -259,7 +275,7 @@ const AdminChat = () => {
                   conversations={conversations}
                   selectedConversation={selectedConversation}
                   onSelectConversation={handleSelectConversation}
-                  onConversationsUpdate={setConversations}
+                  onConversationsUpdate={handleConversationsUpdate}
                   loading={loading}
                   socket={socket}
                 />

@@ -9,15 +9,15 @@ import { toast } from 'react-toastify';
 import { ROUTE_PATH } from '@constants';
 import { postRequest } from '~/app/configs';
 
-export const apiPostRegister = (navigate: NavigateFunction) => {
+export const apiPostRegister = ({ onSuccess, onError }: any) => {
    return useMutation({
-      mutationFn: (data: { username: string; password: string }) => postRequest('/auth/register', data),
-      onSuccess: () => {
-         toast.success('Đăng nhập thành công!');
-         navigate(ROUTE_PATH.SIGN_IN);
-      },
-      onError: (data: any) => {
-         toast.error(data?.response?.data?.message);
-      },
+      mutationFn: (data: { 
+         email: string;
+         username: string; 
+         password: string;
+         passwordComfirm: string;
+      }) => postRequest('/auth/create', data),
+      onSuccess,
+      onError,
    });
 };

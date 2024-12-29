@@ -141,7 +141,7 @@ class UserModel extends BaseModel {
         ...userDataToSave,
         password: hashedPassword,
         is_vip: 0,
-        user_type: 0, // 0: normal user, 1: admin
+        user_type: 2, // Mặc định là khách hàng
         created_at: new Date()
       };
 

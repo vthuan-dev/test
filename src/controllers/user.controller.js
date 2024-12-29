@@ -37,12 +37,27 @@ export const getAll = async (req, res) => {
 
 export const create = async (req, res) => {
   try {
-    const { password, ...remainBody } = req.body;
+    // Lấy toàn bộ dữ liệu từ body
+    const userData = req.body;
+    
+    // Kiểm tra dữ liệu bắt buộc
+    if (!userData.email || !userData.username || !userData.password || !userData.passwordComfirm) {
+      return responseError(res, {
+        status: 400,
+        message: "Vui lòng điền đầy đủ thông tin"
+      });
+    }
 
-    const user = await usersModel.createUser({
-      ...remainBody,
-      password,
-    });
+    // Kiểm tra password và passwordConfirm
+    if (userData.password !== userData.passwordComfirm) {
+      return responseError(res, {
+        status: 400,
+        message: "Mật khẩu không khớp"
+      });
+    }
+
+    // Gọi createUser với đầy đủ dữ liệu
+    const user = await usersModel.createUser(userData);
 
     return responseSuccess(res, {
       message: "Đăng ký tài khoản thành công",
