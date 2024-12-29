@@ -442,7 +442,7 @@ const OrderDetail = () => {
    const [extendRequestDialogOpen, setExtendRequestDialogOpen] = useState(false);
    const [selectedRequest, setSelectedRequest] = useState<any>(null);
 
-   // Query để lấy danh sách y��u cầu gia hạn cho đơn hàng cụ thể
+   // Query để lấy danh sách yêu cầu gia hạn cho đơn hàng cụ thể
    const { data: extendRequests } = useQuery({
       queryKey: ['extend-requests', id],
       queryFn: () => getRequest(`/order/extend-requests/${id}`),
@@ -465,16 +465,17 @@ const OrderDetail = () => {
    // Thêm mutation cho update payment
    const { mutate: updatePaymentStatus } = useMutation({
       mutationFn: (requestId: number) => 
-         putRequest('/order/extend-payment', { request_id: requestId }),
+         putRequest(`/order/extend-payment`, {
+            request_id: requestId
+         }),
       onSuccess: () => {
          toast.success('Đã cập nhật trạng thái thanh toán');
-         // Invalidate cả 2 query để cập nhật dữ liệu ngay lập tức
          queryClient.invalidateQueries(['extend-requests', id]);
          queryClient.invalidateQueries(['order-detail', id]); 
       },
       onError: (error: any) => {
-         toast.error('Lỗi khi cập nhật trạng thái thanh toán');
          console.error('Update payment status error:', error);
+         toast.error(error?.response?.data?.message || 'Lỗi khi cập nhật trạng thái thanh toán');
       }
    });
 
@@ -537,7 +538,7 @@ const OrderDetail = () => {
          </DialogContent>
          <DialogActions>
             <Button onClick={() => setExtendRequestDialogOpen(false)}>
-               Đ��ng
+               Đóng
             </Button>
             {selectedRequest?.request_status === 'PENDING' && (
                <>
@@ -885,10 +886,19 @@ const OrderDetail = () => {
                                        color={request.payment_status === 'PAID' ? 'success' : 'warning'}
                                        onClick={() => {
                                           if (request.payment_status === 'UNPAID') {
-                                             updatePaymentStatus(request.id);
+                                             if (window.confirm('Xác nhận đã nhận thanh toán?')) {
+                                                updatePaymentStatus(request.id);
+                                             }
                                           }
                                        }}
-                                       sx={{ cursor: request.payment_status === 'UNPAID' ? 'pointer' : 'default' }}
+                                       sx={{ 
+                                          cursor: request.payment_status === 'UNPAID' ? 'pointer' : 'default',
+                                          '&:hover': {
+                                             backgroundColor: request.payment_status === 'UNPAID' 
+                                                ? 'warning.light' 
+                                                : 'success.light'
+                                          }
+                                       }}
                                     />
                                  )}
                               </TableCell>

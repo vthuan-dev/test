@@ -37,7 +37,7 @@ const PaymentCallback = () => {
             if (response.data.success) {
                await queryClient.invalidateQueries(['orders']);
                toast.success('Thanh toán thành công! Đơn hàng của bạn đã được xác nhận.');
-               setTimeout(() => navigate('/orders'), 2000);
+               setTimeout(() => navigate('/'), 2000);
             } else {
                throw new Error(response.data.message || 'Thanh toán thất bại');
             }
