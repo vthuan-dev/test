@@ -20,6 +20,7 @@ import {
 } from '@mui/material';
 import { Home, Edit, Lock, ExitToApp } from '@mui/icons-material';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 
 import ProfileDetail from './components/ProfileDetail';
@@ -40,6 +41,7 @@ const breadcrumbs = [
 
 const Profile = () => {
    const { user, authLogout } = useAuth();
+   const navigate = useNavigate();
    const [selectedView, setSelectedView] = useState<'overview' | 'editProfile' | 'changePassword' | 'cart'>('overview');
    const [openLogoutModal, setOpenLogoutModal] = useState(false);
 
@@ -47,6 +49,7 @@ const Profile = () => {
    const handleCloseLogoutModal = () => setOpenLogoutModal(false);
    const handleConfirmLogout = () => {
       authLogout();
+      navigate(ROUTE_PATH.SIGN_IN);
       setOpenLogoutModal(false);
    };
 
