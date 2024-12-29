@@ -17,6 +17,7 @@ router.post("/statistic-revenue", orderController.statisticTotalPrice);
 
 router.post("/payment/create", paymentController.createPayment);
 router.get("/payment/callback/vnpay_return", paymentController.savePayment);
+router.put("/payment-status/:orderId", orderController.updateOrderAfterPayment);
 
 router.get("/get-one-order-by-user-id/:id", orderController.getUserOrders);
 

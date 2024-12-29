@@ -1,9 +1,14 @@
 export const ORDER_STATUS = Object.freeze({
-  PENDING: "PENDING", // trống
-  CONFIRMED: "CONFIRMED", // đã xác nhận đặt
-  CHECKED_IN: "CHECKED_IN", // đẵ đến
-  CHECKED_OUT: "CHECKED_OUT", // đã trả phòng
-  CANCELLED: "CANCELLED", // hủy
+  PENDING: "PENDING",
+  PENDING_PAYMENT: "PENDING_PAYMENT",
+  CONFIRMED: "CONFIRMED",
+  CANCELLED: "CANCELLED"
+});
+
+export const PAYMENT_STATUS = Object.freeze({
+  PENDING: "PENDING",
+  PAID: "PAID",
+  FAILED: "FAILED"
 });
 
 export const PAYMENT_METHOD = Object.freeze({

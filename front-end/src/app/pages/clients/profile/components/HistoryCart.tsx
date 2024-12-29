@@ -121,6 +121,29 @@ const formatCurrency = (amount: number) => {
    }).format(amount);
 };
 
+const getStatusChipProps = (orderStatus: string, paymentStatus: number) => {
+   if (orderStatus === 'PENDING_PAYMENT') {
+     return {
+       label: 'Chờ thanh toán',
+       color: 'warning' as const,
+     };
+   } else if (orderStatus === 'CONFIRMED' && paymentStatus === 1) {
+     return {
+       label: 'Đã thanh toán',
+       color: 'success' as const,
+     };
+   } else if (orderStatus === 'CANCELLED') {
+     return {
+       label: 'Đã hủy',
+       color: 'error' as const,
+     };
+   }
+   return {
+     label: orderStatus,
+     color: 'default' as const,
+   };
+};
+
 const HistoryCart = () => {
    const { user } = useAuth();
    const [openModal, setOpenModal] = useState(false);
@@ -392,10 +415,14 @@ const HistoryCart = () => {
                         </TableCell>
                         <TableCell>
                            <Chip
-                              label={order.order_status}
-                              color={order.payment_status === 1 ? 'success' : 'error'}
+                              {...getStatusChipProps(order.order_status, order.payment_status)}
                               variant="outlined"
                               size="small"
+                              sx={{
+                                 animation: order.order_status === 'PENDING_PAYMENT' 
+                                    ? `${styles['pulse']} 2s infinite` 
+                                    : 'none',
+                              }}
                            />
                         </TableCell>
                         <TableCell>

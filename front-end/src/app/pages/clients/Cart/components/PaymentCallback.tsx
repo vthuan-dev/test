@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 const PaymentCallback = () => {
    const navigate = useNavigate();
+   const queryClient = useQueryClient();
 
    useEffect(() => {
       const handlePaymentResult = async () => {
@@ -13,14 +15,14 @@ const PaymentCallback = () => {
             const responseCode = urlParams.get('vnp_ResponseCode');
             const orderId = urlParams.get('vnp_TxnRef');
 
-            // Gọi API xác thực thanh toán và cập nhật trạng thái đơn hàng
+            // Đợi API xác thực thanh toán hoàn tất
             const response = await fetch(
                `${process.env.REACT_APP_API_URL}/order/payment/callback/vnpay_return${window.location.search}`
             );
             const data = await response.json();
 
             if (responseCode === '00' && data.success) {
-               // Cập nhật trạng thái đơn hàng thành đã xác nhận
+               // Đợi cập nhật trạng thái hoàn tất
                await fetch(`${process.env.REACT_APP_API_URL}/order/update/${orderId}`, {
                   method: 'PUT',
                   headers: {
@@ -32,6 +34,9 @@ const PaymentCallback = () => {
                   })
                });
 
+               // Refresh lại dữ liệu
+               await queryClient.invalidateQueries(['orders']);
+               
                toast.success('Thanh toán thành công!');
                navigate('/orders');
             } else {
@@ -46,7 +51,7 @@ const PaymentCallback = () => {
       };
 
       handlePaymentResult();
-   }, [navigate]);
+   }, [navigate, queryClient]);
 
    return (
       <div style={{ textAlign: 'center', marginTop: '50px' }}>

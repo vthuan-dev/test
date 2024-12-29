@@ -9,6 +9,13 @@ import { getBillNotify, getOrderSuccessNotify } from "../helpers/emailTemplate";
 import { sendMail } from "../helpers/sendMail";
 import { calculateRoomPrice } from "../helpers/calculatePrice";
 
+// Chỉ định nghĩa PAYMENT_STATUS
+const PAYMENT_STATUS = {
+  UNPAID: 0,
+  PAID: 1,
+  FAILED: 2
+};
+
 export const getAll = async (req, res) => {
   try {
     const { query } = req;
@@ -39,14 +46,16 @@ export const getAll = async (req, res) => {
 export const create = async (req, res) => {
   const connection = await orderModel.connection.promise();
   try {
-    const { rooms, products, username, email, ...remainBody } = req.body;
+    const { rooms, products, username, email, payment_method, ...remainBody } = req.body;
     
     await connection.beginTransaction();
 
-    // Tạo order
+    // Tạo order với trạng thái phù hợp
     const result = await orderModel.create({
       ...remainBody,
-      status: ORDER_STATUS.CONFIRMED,
+      // Sử dụng ORDER_STATUS từ constant
+      status: payment_method === 2 ? ORDER_STATUS.CONFIRMED : ORDER_STATUS.PENDING_PAYMENT,
+      payment_status: payment_method === 2 ? PAYMENT_STATUS.PAID : PAYMENT_STATUS.UNPAID
     });
 
     const order_id = result?.insertId;
@@ -147,12 +156,11 @@ export const create = async (req, res) => {
     return responseSuccess(res, {
       message: "Tạo mới hóa đơn thành công",
       data: {
-        order_id,
+        insertId: result.insertId,
+        order_id: result.insertId,
         total_money: totalOrderPrice,
-        breakdown: {
-          rooms: rooms?.length || 0,
-          products: products?.length || 0
-        }
+        status: payment_method === 1 ? ORDER_STATUS.CONFIRMED : ORDER_STATUS.PENDING_PAYMENT,
+        payment_status: payment_method === 1 ? PAYMENT_STATUS.PAID : PAYMENT_STATUS.UNPAID
       }
     });
 
@@ -1096,7 +1104,7 @@ export const approveExtendRoom = async (req, res) => {
         WHERE id = ?
       `, [newEndTime, totalHours, totalPrice, request.room_order_id]);
 
-      // Cập nhật tổng tiền orders (bao g���m cả sản phẩm)
+      // Cập nhật tổng tiền orders (bao gồm cả sản phẩm)
       await connection.query(`
         UPDATE orders o
         SET total_money = (
@@ -1313,5 +1321,55 @@ export const statisticRoomDetail = async (req, res) => {
   } catch (error) {
     console.error("Statistic room detail error:", error);
     return responseError(res, error);
+  }
+};
+
+// Thêm hàm mới để cập nhật trạng thái sau khi thanh toán VNPay thành công
+export const updateOrderAfterPayment = async (req, res) => {
+  const connection = await orderModel.connection.promise();
+  try {
+    const { orderId } = req.params;
+    const { vnp_ResponseCode, vnp_TransactionStatus } = req.query; // Thêm params từ VNPay
+
+    await connection.beginTransaction();
+
+    // Kiểm tra trạng thái thanh toán từ VNPay
+    if (vnp_ResponseCode === '00' && vnp_TransactionStatus === '00') {
+      // Thanh toán thành công
+      await connection.query(
+        `UPDATE orders 
+         SET status = ?, 
+             payment_status = ?,
+             updated_at = NOW() 
+         WHERE id = ?`,
+        [ORDER_STATUS.CONFIRMED, PAYMENT_STATUS.PAID, orderId]
+      );
+
+      await connection.commit();
+
+      // Chuyển hướng đến trang thành công
+      return res.redirect(`/payment-success?orderId=${orderId}`);
+    } else {
+      // Thanh toán thất bại
+      await connection.query(
+        `UPDATE orders 
+         SET status = ?, 
+             payment_status = ?,
+             updated_at = NOW() 
+         WHERE id = ?`,
+        [ORDER_STATUS.PENDING_PAYMENT, PAYMENT_STATUS.FAILED, orderId]
+      );
+
+      await connection.commit();
+
+      // Chuyển hướng đến trang thất bại
+      return res.redirect(`/payment-failed?orderId=${orderId}`);
+    }
+
+  } catch (error) {
+    if (connection) await connection.rollback();
+    console.error("Update order payment status error:", error);
+    // Chuyển hướng đến trang lỗi
+    return res.redirect('/payment-error');
   }
 };
