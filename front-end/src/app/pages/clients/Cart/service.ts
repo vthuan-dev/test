@@ -54,7 +54,7 @@ export const createOrder = ({ handleClose }: { handleClose: (res: any) => void }
          });
 
          handleClose(res);
-         toast.success('Tạo đơn hàng thành công.');
+        
       },
       onError: (error: any) => {
          // Lấy thông báo lỗi từ response của API

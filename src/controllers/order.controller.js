@@ -1335,25 +1335,22 @@ export const updateOrderAfterPayment = async (req, res) => {
   const connection = await orderModel.connection.promise();
   try {
     const { orderId } = req.params;
-    const { vnp_ResponseCode, vnp_TransactionStatus } = req.query; // Thêm params từ VNPay
+    const { vnp_ResponseCode, vnp_TransactionStatus } = req.query;
 
     await connection.beginTransaction();
 
-    // Kiểm tra trạng thái thanh toán từ VNPay
     if (vnp_ResponseCode === '00' && vnp_TransactionStatus === '00') {
-      // Thanh toán thành công
+      // Thanh toán thành công - luôn set status là PAID
       await connection.query(
         `UPDATE orders 
          SET status = ?, 
              payment_status = ?,
              updated_at = NOW() 
          WHERE id = ?`,
-        [ORDER_STATUS.CONFIRMED, PAYMENT_STATUS.PAID, orderId]
+        ['PAID', 'PAID', orderId]
       );
 
       await connection.commit();
-
-      // Chuyển hướng đến trang thành công
       return res.redirect(`/payment-success?orderId=${orderId}`);
     } else {
       // Thanh toán thất bại
@@ -1363,19 +1360,16 @@ export const updateOrderAfterPayment = async (req, res) => {
              payment_status = ?,
              updated_at = NOW() 
          WHERE id = ?`,
-        [ORDER_STATUS.PENDING_PAYMENT, PAYMENT_STATUS.FAILED, orderId]
+        ['PENDING_PAYMENT', 'FAILED', orderId]
       );
 
       await connection.commit();
-
-      // Chuyển hướng đến trang thất bại
       return res.redirect(`/payment-failed?orderId=${orderId}`);
     }
 
   } catch (error) {
     if (connection) await connection.rollback();
     console.error("Update order payment status error:", error);
-    // Chuyển hướng đến trang lỗi
     return res.redirect('/payment-error');
   }
 };

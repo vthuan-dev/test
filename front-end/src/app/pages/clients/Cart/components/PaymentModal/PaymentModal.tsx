@@ -23,6 +23,7 @@ import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
+import { toast } from 'react-toastify';
 
 import { createOrder, getRoomOrderTimeline } from '../../service';
 
@@ -60,7 +61,26 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, from, room
          if (res && 'insertId' in res) {
             orderIdRef.current.value = res.insertId as number;
             buttonSubmitRef.current && buttonSubmitRef.current.click();
+            toast.dismiss('payment-redirect');
+            setTimeout(() => {
+               toast.success('Đang chuyển đến trang thanh toán...', {
+                  toastId: 'payment-redirect',
+                  position: "top-right",
+                  autoClose: 3000,
+                  hideProgressBar: false,
+               });
+            }, 100);
          }
+      } else {
+         toast.dismiss('payment-cash-success');
+         setTimeout(() => {
+            toast.success('Đơn hàng đã được tạo thành công!', {
+               toastId: 'payment-cash-success',
+               position: "top-right",
+               autoClose: 3000,
+               hideProgressBar: false,
+            });
+         }, 100);
       }
 
       onClose();

@@ -124,8 +124,8 @@ const formatCurrency = (amount: number) => {
 const getStatusChipProps = (orderStatus: string, paymentStatus: number) => {
    if (orderStatus === 'PENDING_PAYMENT') {
      return {
-       label: 'Chờ thanh toán',
-       color: 'warning' as const,
+       label: 'Đã thanh toán',
+       color: 'success' as const,
      };
    } else if (orderStatus === 'CONFIRMED' && paymentStatus === 1) {
      return {
@@ -203,12 +203,43 @@ const HistoryCart = () => {
          handleCloseExtendModal();
          queryClient.invalidateQueries(['admin-order-user-id']);
          queryClient.invalidateQueries(['extend-requests']);
-         toast.success('Yêu cầu gia hạn đã được gửi');
+         toast.success('Yêu cầu gia hạn đã được gửi', {
+            toastId: 'extend-request-success',
+            position: "top-right",
+            autoClose: 3000,
+            hideProgressBar: false,
+         });
       },
       onError: (error: any) => {
-         toast.error(error?.response?.data?.message || 'Có lỗi xảy ra');
+         toast.error(error?.response?.data?.message || 'Có lỗi xảy ra', {
+            toastId: 'extend-request-error',
+         });
       }
    });
+
+   const paymentMutation = useMutation({
+      mutationFn: (data: { request_id: number }) =>
+         postRequest('/order/extend-payment', data),
+      onSuccess: () => {
+         queryClient.invalidateQueries(['admin-order-user-id']);
+         queryClient.invalidateQueries(['extend-requests']);
+         toast.success('Thanh toán thành công!', {
+            toastId: 'payment-success',
+            position: "top-right",
+            autoClose: 3000,
+            hideProgressBar: false,
+         });
+      },
+      onError: (error: any) => {
+         toast.error(error?.response?.data?.message || 'Thanh toán thất bại', {
+            toastId: 'payment-error',
+         });
+      }
+   });
+
+   const handlePayment = (requestId: number) => {
+      paymentMutation.mutate({ request_id: requestId });
+   };
 
    const handleOpenModal = (order: OrderData) => {
       setSelectedOrder(order);

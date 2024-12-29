@@ -2,6 +2,7 @@ export const ORDER_STATUS = Object.freeze({
   PENDING: "PENDING",
   PENDING_PAYMENT: "PENDING_PAYMENT",
   CONFIRMED: "CONFIRMED",
+  PAID: "PAID",
   CANCELLED: "CANCELLED"
 });
 
@@ -12,10 +13,10 @@ export const PAYMENT_STATUS = Object.freeze({
 });
 
 export const PAYMENT_METHOD = Object.freeze({
-  PAYMENT_ON_CHECKIN: "PAYMENT_ON_CHECKIN", // thanh toán khi checkin
-  PAYMENT_IN_ADVANCE: "PAYMENT_IN_ADVANCE", // thanh toán khi online
+  PAYMENT_ON_CHECKIN: "PAYMENT_ON_CHECKIN",
+  PAYMENT_IN_ADVANCE: "PAYMENT_IN_ADVANCE",
 });
 export const ORDER_TYPE = Object.freeze({
-  ROOM_ORDER: "ROOM_ORDER", // thanh toán khi checkin
-  PRODUCT_ORDER: "PRODUCT_ORDER", // thanh toán khi online
+  ROOM_ORDER: "ROOM_ORDER",
+  PRODUCT_ORDER: "PRODUCT_ORDER",
 });
