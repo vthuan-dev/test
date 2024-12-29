@@ -23,6 +23,7 @@ import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
+import { toast } from 'react-hot-toast';
 
 import { createOrder, getRoomOrderTimeline } from '../../service';
 
@@ -43,7 +44,7 @@ interface PaymentModalProps {
 }
 
 const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, from, rooms }) => {
-   const { watch, setValue, getValues, setError } = from;
+   const { watch, setValue, getValues, setError, clearErrors } = from;
    const { user } = useAuth();
    const buttonSubmitRef = useRef<HTMLButtonElement>(null);
    const priceRef = useRef(0);
@@ -67,84 +68,188 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, from, room
       from.reset();
    };
 
-   const { mutate } = createOrder({ handleClose });
+   const { mutate, mutateAsync } = createOrder({ 
+      handleClose: async (orderResponse) => {
+         if (orderResponse?.data?.insertId) {
+            if (paymentMethod === 'card') {
+               await handlePaymentResponse(orderResponse.data.insertId, from.getValues('total_money'));
+            } else {
+               handleClose(orderResponse);
+               toast.success('Đặt phòng thành công!');
+            }
+         }
+      } 
+   });
 
    const handlePaymentMethodChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       setPaymentMethod(event.target.value as any);
    };
 
    const handleRoomChange = (index: number, field: 'start_time' | 'end_time', value: Date | null) => {
+      if (!value) return;
+
       const newRooms = [...watch('rooms')];
       const currentRoom = newRooms[index];
 
-      if (field === 'start_time' && value) {
-         const totalTimeInHours = currentRoom.total_time || 1;
-         const end_time = new Date(value.getTime() + totalTimeInHours * 60 * 60 * 1000);
-         console.log(end_time);
-         setValue(`rooms[${index}].start_time`, dayjs(value).format('YYYY-MM-DD HH:mm:ss'));
-         setValue(`rooms[${index}].end_time`, dayjs(end_time).format('YYYY-MM-DD HH:mm:ss'));
-      } else if (field === 'end_time' && value) {
-         const startTime = currentRoom.start_time;
-         if (startTime) {
-            const totalTimeInMilliseconds = value.getTime() - new Date(startTime).getTime();
-            const totalTimeInHours = Math.max(1, totalTimeInMilliseconds / (1000 * 60 * 60));
-
-            setValue(`rooms[${index}].total_time`, totalTimeInHours);
-            setValue(`rooms[${index}].end_time`, dayjs(value).format('YYYY-MM-DD HH:mm:ss'));
-         }
-      }
-   };
-
-   const onSubmitForm: SubmitHandler<PaymentModalType> = (data) => {
-      priceRef.current = data.total_money;
-
-      // Initialize an array to track any validation errors
-      let hasError = false;
-
-      const roomsToSubmit = data.rooms.map((room, index) => {
-         const roomTimeline = dataRoomOrderTimeline?.find((timeline: any) => {
-            return Number(timeline.room_id) === Number(room.room_id);
-         });
-
-         if (roomTimeline) {
-            const roomStartTime = dayjs(room.start_time).utc();
-            const roomEndTime = dayjs(room.end_time).utc();
-            const roomTimelineStartTime = dayjs(roomTimeline.start_time).utc();
-            const roomTimelineEndTime = dayjs(roomTimeline.end_time).utc();
-
-            const isTimeOverlap =
-               roomStartTime.isBefore(roomTimelineEndTime) && roomEndTime.isAfter(roomTimelineStartTime);
-
-            if (isTimeOverlap) {
-               setError(`rooms[${index}].start_time` as never, {
-                  type: 'manual',
-                  message: `Thời gian của phòng ${room.room_id} trùng với một đơn đặt phòng đã có.`,
+      try {
+         if (field === 'start_time') {
+            if (dayjs(value).isBefore(dayjs())) {
+               setError(`rooms.${index}.start_time`, {
+                  message: 'Thời gian bắt đầu phải lớn hơn thời gian hiện tại'
                });
-               hasError = true;
+               return;
+            }
+
+            const totalTimeInHours = currentRoom.total_time || 1;
+            const end_time = dayjs(value).add(totalTimeInHours, 'hour').toDate();
+            
+            setValue(`rooms.${index}.start_time`, value);
+            setValue(`rooms.${index}.end_time`, end_time);
+            
+         } else if (field === 'end_time') {
+            const startTime = watch(`rooms.${index}.start_time`);
+            
+            if (startTime && dayjs(value).isBefore(dayjs(startTime).add(1, 'hour'))) {
+               setError(`rooms.${index}.end_time`, {
+                  message: 'Thời gian kết thúc phải sau thời gian bắt đầu ít nhất 1 giờ'
+               });
+               return;
+            }
+
+            setValue(`rooms.${index}.end_time`, value);
+            
+            if (startTime) {
+               const totalHours = dayjs(value).diff(dayjs(startTime), 'hour', true);
+               setValue(`rooms.${index}.total_time`, Math.max(1, totalHours));
             }
          }
 
-         return room; // Keep the room object in the map to submit
-      });
+         clearErrors([`rooms.${index}.start_time`, `rooms.${index}.end_time`]);
+         
+      } catch (error) {
+         console.error('Error handling room change:', error);
+      }
+   };
 
-      // If there are any validation errors, do not proceed with mutation
-      if (hasError) {
-         return console.log('There is an overlap in room times');
-      } else {
-         // Perform the mutation if no errors
-         mutate({
+   const handlePaymentResponse = async (orderId: number, totalMoney: number) => {
+      try {
+         // Tạo đơn hàng trước
+         const orderResponse = await fetch(`${SETTINGS_CONFIG.API_URL}/api/order/add`, {
+            method: 'POST',
+            headers: {
+               'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(orderData)
+         });
+
+         const orderResult = await orderResponse.json();
+         
+         if (!orderResult.success) {
+            throw new Error(orderResult.message || 'Không thể tạo đơn hàng');
+         }
+
+         // Sau đó mới bắt đầu thanh toán
+         const paymentUrl = `${SETTINGS_CONFIG.API_URL}/api/order/payment/create`;
+         const response = await fetch(paymentUrl, {
+            method: 'POST',
+            headers: {
+               'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+               amount: Math.floor(totalMoney),
+               orderId: orderId.toString(),
+            }),
+         });
+
+         const data = await response.json();
+
+         if (data.success && data.vnpUrl) {
+            window.location.assign(data.vnpUrl);
+         } else {
+            toast.error('Lỗi tạo thanh toán: ' + (data.message || 'Vui lòng thử lại'));
+         }
+      } catch (error) {
+         console.error('Lỗi thanh toán:', error);
+         toast.error('Lỗi khi xử lý thanh toán');
+      }
+   };
+
+   const onSubmitForm: SubmitHandler<PaymentModalType> = async (data) => {
+      try {
+         console.log('Form submitted:', data);
+
+         const orderData = {
             ...data,
             payment_method: paymentMethod === 'cash' ? 1 : 2,
             rooms: data.rooms.map((item) => ({
                ...item,
-               end_time: dayjs(item.end_time).format('YYYY-MM-DD HH:mm:ss'),
+               room_id: parseInt(item.room_id),
                start_time: dayjs(item.start_time).format('YYYY-MM-DD HH:mm:ss'),
+               end_time: dayjs(item.end_time).format('YYYY-MM-DD HH:mm:ss'),
             })),
             user_id: user?.id,
             username: user?.username,
             email: user?.email,
-            order_date: '',
-         } as any);
+            order_date: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+         };
+
+         if (paymentMethod === 'card') {
+            try {
+               const paymentUrl = `${SETTINGS_CONFIG.API_URL}/order/payment/create`;
+               console.log('Payment URL:', paymentUrl);
+               
+               const response = await fetch(paymentUrl, {
+                  method: 'POST',
+                  headers: {
+                     'Content-Type': 'application/json',
+                     'Accept': 'application/json'
+                  },
+                  body: JSON.stringify({
+                     amount: Math.floor(data.total_money),
+                     orderId: orderData.id || Date.now().toString(),
+                  }),
+               });
+
+               const paymentData = await response.json();
+               console.log('Payment response:', paymentData);
+
+               if (paymentData.success && paymentData.vnpUrl) {
+                  const width = 1000;
+                  const height = 800;
+                  const left = window.screenX + (window.outerWidth - width) / 2;
+                  const top = window.screenY + (window.outerHeight - height) / 2;
+
+                  const paymentWindow = window.open(
+                     paymentData.vnpUrl,
+                     'VNPay Payment',
+                     `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`
+                  );
+
+                  if (!paymentWindow) {
+                     toast.error('Vui lòng cho phép popup để tiếp tục thanh toán');
+                     return;
+                  }
+
+                  const checkWindow = setInterval(() => {
+                     if (paymentWindow.closed) {
+                        clearInterval(checkWindow);
+                        toast.success('Đã đóng cửa sổ thanh toán');
+                     }
+                  }, 500);
+
+               } else {
+                  throw new Error(paymentData.message || 'Lỗi tạo thanh toán');
+               }
+            } catch (error) {
+               console.error('Payment error:', error);
+               toast.error('Lỗi xử lý thanh toán: ' + (error.message || 'Vui lòng thử lại'));
+            }
+         } else {
+            mutate(orderData);
+         }
+      } catch (error) {
+         console.error('Form submission error:', error);
+         toast.error('Có lỗi xảy ra, vui lòng thử lại');
       }
    };
 
@@ -206,52 +311,36 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, from, room
                   ))}
                   <Box width="max-content">
                      <RadioGroup
-                        aria-labelledby="demo-radio-buttons-group-label"
                         value={paymentMethod}
-                        onChange={handlePaymentMethodChange}
+                        onChange={(e) => setPaymentMethod(e.target.value as 'cash' | 'card')}
                         sx={{ mt: 2 }}
                      >
                         <FormControlLabel
                            value="cash"
                            control={<Radio />}
-                           checked={paymentMethod === 'cash'}
-                           onChange={() => setPaymentMethod('cash')}
                            label="Tiền mặt"
                         />
                         <FormControlLabel
                            value="card"
                            control={<Radio />}
-                           checked={paymentMethod === 'card'}
-                           onChange={() => setPaymentMethod('card')}
                            label="Thẻ ngân hàng"
                         />
-                        {/* Thêm các phương thức thanh toán khác */}
                      </RadioGroup>
                   </Box>
                   <Box display="flex" justifyContent="end" gap={2} mt={3}>
-                     <Button variant="outlined" color="error" onClick={handleClose}>
+                     <Button variant="outlined" color="error" onClick={() => handleClose(null)}>
                         Hủy
                      </Button>
                      <Button
                         type="submit"
                         variant="contained"
-                        onClick={() => {
-                           /* Logic xác nhận */
-                           from.handleSubmit(onSubmitForm);
-                        }}
+                        onClick={() => console.log('Submit button clicked')}
                      >
                         Xác nhận
                      </Button>
                   </Box>
                </Box>
             </form>
-            <Box component="form" sx={{ visibility: 'hidden', opacity: 0 }} action={actionPaymentUrl} method="post">
-               <input name="amount" type="number" value={priceRef.current} />
-               <input type="text" name="orderId" ref={orderIdRef} />
-               <button ref={buttonSubmitRef} type="submit">
-                  purchase
-               </button>
-            </Box>
          </Box>
       </Modal>
    );
