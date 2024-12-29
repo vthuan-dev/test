@@ -50,12 +50,16 @@ export const create = async (req, res) => {
     
     await connection.beginTransaction();
 
-    // Tạo order với trạng thái phù hợp
+    // Tạo order với trạng thái phù hợp dựa vào phương thức thanh toán
+    const orderStatus = payment_method === 2 ? 'PENDING_PAYMENT' : 'CONFIRMED';
+    const paymentStatus = payment_method === 2 ? 'UNPAID' : 'PAID';
+
+    // Tạo đơn hàng mới
     const result = await orderModel.create({
       ...remainBody,
-      // Sử dụng ORDER_STATUS từ constant
-      status: payment_method === 2 ? ORDER_STATUS.CONFIRMED : ORDER_STATUS.PENDING_PAYMENT,
-      payment_status: payment_method === 2 ? PAYMENT_STATUS.PAID : PAYMENT_STATUS.UNPAID
+      status: orderStatus,
+      payment_status: paymentStatus,
+      payment_method: payment_method
     });
 
     const order_id = result?.insertId;
@@ -153,14 +157,16 @@ export const create = async (req, res) => {
     };
     await sendMail(getOrderSuccessNotify(sendEmail));
 
+    // Trả về response với thông tin đầy đủ
     return responseSuccess(res, {
       message: "Tạo mới hóa đơn thành công",
       data: {
         insertId: result.insertId,
         order_id: result.insertId,
         total_money: totalOrderPrice,
-        status: payment_method === 1 ? ORDER_STATUS.CONFIRMED : ORDER_STATUS.PENDING_PAYMENT,
-        payment_status: payment_method === 1 ? PAYMENT_STATUS.PAID : PAYMENT_STATUS.UNPAID
+        status: orderStatus,
+        payment_status: paymentStatus,
+        payment_method: payment_method
       }
     });
 
