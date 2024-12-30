@@ -150,8 +150,8 @@ const HistoryCart = () => {
    const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
    const [currentTab, setCurrentTab] = useState('all');
    const [extendRoomId, setExtendRoomId] = useState<number | null>(null);
-   const [additionalHours, setAdditionalHours] = useState(1);
    const [selectedOrderForExtend, setSelectedOrderForExtend] = useState<number | null>(null);
+   const [additionalHours, setAdditionalHours] = useState<number>(1);
    const [openExtendDialog, setOpenExtendDialog] = useState(false);
    const queryClient = useQueryClient();
 
@@ -197,23 +197,20 @@ const HistoryCart = () => {
    });
 
    const extendTimeMutation = useMutation({
-      mutationFn: (data: { order_id: number; room_order_id: number; additional_hours: number }) =>
-         postRequest('/order/extend-room-time', data),
+      mutationFn: (data: { 
+         order_id: number; 
+         room_order_id: number; 
+         additional_hours: number 
+      }) => postRequest('/order/extend-room-time', data),
       onSuccess: () => {
          handleCloseExtendModal();
-         queryClient.invalidateQueries(['admin-order-user-id']);
-         queryClient.invalidateQueries(['extend-requests']);
-         toast.success('Yêu cầu gia hạn đã được gửi', {
-            toastId: 'extend-request-success',
-            position: "top-right",
-            autoClose: 3000,
-            hideProgressBar: false,
-         });
+         queryClient.invalidateQueries(['orderHistory']);
+         toast.success('Yêu cầu gia hạn đã được gửi');
       },
       onError: (error: any) => {
-         toast.error(error?.response?.data?.message || 'Có lỗi xảy ra', {
-            toastId: 'extend-request-error',
-         });
+         console.error('Extend time error:', error);
+         const errorMessage = error?.response?.data?.message || 'Có lỗi xảy ra khi gia hạn';
+         toast.error(errorMessage);
       }
    });
 
@@ -252,39 +249,29 @@ const HistoryCart = () => {
    };
 
    const handleExtendTime = (roomOrderId: number, orderId: number) => {
+      console.log('Extending time for:', { roomOrderId, orderId });
       setExtendRoomId(roomOrderId);
       setSelectedOrderForExtend(orderId);
       setOpenExtendDialog(true);
    };
 
-   const handleConfirmExtend = async () => {
+   const handleConfirmExtend = () => {
       if (!extendRoomId || !selectedOrderForExtend || additionalHours <= 0) {
          toast.error('Vui lòng nhập số giờ gia hạn hợp lệ');
          return;
       }
 
-      try {
-         const result = await extendTimeMutation.mutateAsync({
-            room_order_id: extendRoomId,
-            additional_hours: additionalHours
-         });
+      console.log('Sending extend request:', {
+         room_order_id: extendRoomId,
+         order_id: selectedOrderForExtend,
+         additional_hours: additionalHours
+      });
 
-         if (result.error) {
-            // Hiển thị thông báo lỗi cụ thể từ server
-            toast.error(result.message || 'Không thể gia hạn phòng');
-            if (result.conflicts) {
-               // Có thể hiển thị thông tin chi tiết về conflict
-               console.log('Conflicts:', result.conflicts);
-            }
-         } else {
-            toast.success('Yêu cầu gia hạn đã được gửi');
-            handleCloseExtendModal();
-            // Refresh data
-            queryClient.invalidateQueries(['orderHistory']);
-         }
-      } catch (error) {
-         toast.error('Đã có lỗi xảy ra khi gửi yêu cầu gia hạn');
-      }
+      extendTimeMutation.mutate({
+         room_order_id: extendRoomId,
+         order_id: selectedOrderForExtend,
+         additional_hours: additionalHours
+      });
    };
 
    const handleCloseExtendModal = () => {

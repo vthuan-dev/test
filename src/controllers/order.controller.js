@@ -954,46 +954,81 @@ export const extendRoomTime = async (req, res) => {
   await connection.beginTransaction();
 
   try {
-    const { room_order_id, additional_hours } = req.body;
+    const { room_order_id, order_id, additional_hours } = req.body;
+    console.log('Received extend request:', req.body);
 
-    // Lấy thông tin đặt phòng hiện tại
-    const [roomDetails] = await connection.query(
-      `SELECT rod.*, r.room_name, o.user_id, o.id as order_id 
+    // Kiểm tra và lấy thông tin đặt phòng
+    const [orderDetails] = await connection.query(
+      `SELECT rod.*, r.price as room_price, o.status as order_status, 
+              o.payment_status, r.room_name
        FROM room_order_detail rod
-       JOIN room r ON rod.room_id = r.id
        JOIN orders o ON rod.order_id = o.id
-       WHERE rod.id = ?`,
-      [room_order_id]
+       JOIN room r ON rod.room_id = r.id
+       WHERE rod.id = ? AND o.id = ?`,
+      [room_order_id, order_id]
     );
+    console.log('Order details:', orderDetails);
 
-    if (!roomDetails.length) {
+    if (!orderDetails.length) {
       await connection.rollback();
       return responseError(res, { message: "Không tìm thấy thông tin đặt phòng" });
     }
 
-    const roomDetail = roomDetails[0];
-    const currentEndTime = new Date(roomDetail.end_time);
+    const orderDetail = orderDetails[0];
+
+    // Tính thời gian mới
+    const currentEndTime = new Date(orderDetail.end_time);
     const newEndTime = new Date(currentEndTime.getTime() + (additional_hours * 60 * 60 * 1000));
 
     // Kiểm tra xung đột thời gian
     const conflicts = await checkRoomTimeConflict(
       connection,
-      roomDetail.room_id,
+      orderDetail.room_id,
       currentEndTime,
       newEndTime,
-      roomDetail.order_id
+      order_id
     );
 
     if (conflicts.length > 0) {
       await connection.rollback();
-      return responseError(res, {
-        message: `Không thể gia hạn vì phòng đã được đặt trong khoảng thời gian này`,
-        conflicts: conflicts
+      return responseError(res, { 
+        message: "Phòng đã được đặt trong khoảng thời gian này",
+        conflicts 
       });
     }
 
-    // Tiếp tục xử lý gia hạn nếu không có xung đột
-    // ... phần code còn lại giữ nguyên
+    // Tính giá gia hạn
+    const additionalPrice = additional_hours * orderDetail.room_price;
+
+    // Tạo yêu cầu gia hạn
+    const [result] = await connection.query(
+      `INSERT INTO extend_room_requests 
+       (order_id, room_order_id, additional_hours, additional_price, request_status, payment_status)
+       VALUES (?, ?, ?, ?, 'PENDING', 'UNPAID')`,
+      [order_id, room_order_id, additional_hours, additionalPrice]
+    );
+
+    await connection.commit();
+
+    // Emit socket event sau khi tạo yêu cầu thành công
+    if (req.io) {
+      req.io.emit('new_extend_request', {
+        id: result.insertId,
+        order_id,
+        room_name: orderDetail.room_name,
+        created_at: new Date()
+      });
+    }
+
+    return responseSuccess(res, {
+      message: "Yêu cầu gia hạn đã được gửi thành công",
+      data: {
+        id: result.insertId,
+        room_name: orderDetail.room_name,
+        additional_hours,
+        additional_price: additionalPrice
+      }
+    });
 
   } catch (error) {
     await connection.rollback();
@@ -1231,18 +1266,15 @@ export const updateExtendPaymentStatus = async (req, res) => {
 
 export const getPendingExtendRequests = async (req, res) => {
   try {
-    const [requests] = await orderModel.connection.promise().query(`
-      SELECT 
-        er.*,
-        r.room_name,
-        o.id as order_id
-      FROM extend_room_requests er
-      JOIN room_order_detail rod ON er.room_order_id = rod.id
-      JOIN room r ON rod.room_id = r.id
-      JOIN orders o ON er.order_id = o.id
-      WHERE er.request_status = 'PENDING'
-      ORDER BY er.created_at DESC
-    `);
+    const [requests] = await orderModel.connection.promise().query(
+      `SELECT er.*, r.room_name, o.status as order_status
+       FROM extend_room_requests er
+       JOIN room_order_detail rod ON er.room_order_id = rod.id
+       JOIN room r ON rod.room_id = r.id
+       JOIN orders o ON er.order_id = o.id
+       WHERE er.request_status = 'PENDING'
+       ORDER BY er.created_at DESC`
+    );
 
     return responseSuccess(res, {
       message: "Lấy danh sách yêu cầu gia hạn thành công",

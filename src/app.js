@@ -51,9 +51,26 @@ routes.forEach((item) =>
 // Đăng ký route
 app.use('/api/order-room-detail', orderRoomDetailRouter);
 
+// Đăng ký route với io
+app.use('/api/order', (req, res, next) => {
+  req.io = io;
+  next();
+}, orderRoutes);
+
 // Socket.IO events
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
+
+  // Thêm room cho admin
+  socket.on('join_admin', () => {
+    socket.join('admin_room');
+    console.log(`Admin joined: ${socket.id}`);
+  });
+
+  // Cập nhật handler extend request
+  socket.on("extend_request", (data) => {
+    io.to('admin_room').emit("new_extend_request", data);
+  });
 
   // Join room khi user vào conversation
   socket.on("join_conversation", (conversation_id) => {
@@ -98,12 +115,6 @@ io.on("connection", (socket) => {
   // Xử lý stop typing
   socket.on("stop_typing", (conversation_id) => {
     socket.to(`conversation_${conversation_id}`).emit("user_stop_typing");
-  });
-
-  // Thêm handler cho extend request
-  socket.on("extend_request", (data) => {
-    // Broadcast to all admins
-    io.emit("new_extend_request", data);
   });
 
   // Handle joining rooms
