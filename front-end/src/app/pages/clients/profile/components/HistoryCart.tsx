@@ -257,14 +257,34 @@ const HistoryCart = () => {
       setOpenExtendDialog(true);
    };
 
-   const handleConfirmExtend = () => {
-      if (!extendRoomId || !selectedOrderForExtend) return;
-      
-      extendTimeMutation.mutate({
-         order_id: selectedOrderForExtend,
-         room_order_id: extendRoomId,
-         additional_hours: additionalHours
-      });
+   const handleConfirmExtend = async () => {
+      if (!extendRoomId || !selectedOrderForExtend || additionalHours <= 0) {
+         toast.error('Vui lòng nhập số giờ gia hạn hợp lệ');
+         return;
+      }
+
+      try {
+         const result = await extendTimeMutation.mutateAsync({
+            room_order_id: extendRoomId,
+            additional_hours: additionalHours
+         });
+
+         if (result.error) {
+            // Hiển thị thông báo lỗi cụ thể từ server
+            toast.error(result.message || 'Không thể gia hạn phòng');
+            if (result.conflicts) {
+               // Có thể hiển thị thông tin chi tiết về conflict
+               console.log('Conflicts:', result.conflicts);
+            }
+         } else {
+            toast.success('Yêu cầu gia hạn đã được gửi');
+            handleCloseExtendModal();
+            // Refresh data
+            queryClient.invalidateQueries(['orderHistory']);
+         }
+      } catch (error) {
+         toast.error('Đã có lỗi xảy ra khi gửi yêu cầu gia hạn');
+      }
    };
 
    const handleCloseExtendModal = () => {
