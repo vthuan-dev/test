@@ -354,11 +354,12 @@ const AdminChat = () => {
                     <Box sx={{ 
                       flexGrow: 1,
                       height: '100%',
-                      pt: '73px', // Thêm padding-top bằng chiều cao của header
-                      pb: '80px', // Thêm padding-bottom để tránh bị che bởi input
+                      pt: '73px', // Giữ nguyên padding-top cho header
+                      pb: '60px', // Giảm padding-bottom xuống
                       overflow: 'hidden',
                       display: 'flex',
-                      flexDirection: 'column'
+                      flexDirection: 'column',
+                      position: 'relative' // Thêm position relative
                     }}>
                       <AdminChatBox 
                         conversation={selectedConversation}

@@ -239,10 +239,10 @@ export const AdminChatBox = ({
           flex: 1,
           overflow: 'auto',
           p: 2,
-          pb: '80px',
           display: 'flex',
           flexDirection: 'column',
           gap: 1,
+          height: 'calc(100vh - 440px)',
           '&::-webkit-scrollbar': {
             width: '8px',
           },
@@ -369,19 +369,22 @@ export const AdminChatBox = ({
           bottom: 0,
           left: 0,
           right: 0,
-          p: 2,
+          p: 1,
           bgcolor: 'rgba(20,23,40,0.95)',
           borderTop: '1px solid rgba(255,255,255,0.05)',
           backdropFilter: 'blur(10px)',
-          zIndex: 2
+          zIndex: 2,
+          height: '50px',
+          display: 'flex',
+          alignItems: 'center'
         }}
       >
         <TextField
           inputRef={inputRef}
-          size="medium"
+          size="small"
           fullWidth
           multiline
-          maxRows={4}
+          maxRows={3}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -390,34 +393,19 @@ export const AdminChatBox = ({
           autoFocus
           sx={{
             '& .MuiOutlinedInput-root': {
-              borderRadius: 3,
-              bgcolor: 'rgba(255,255,255,0.05)',
-              fontSize: '0.95rem',
-              color: '#fff',
-              '&:hover': {
-                bgcolor: 'rgba(255,255,255,0.08)',
-              },
-              '& fieldset': {
-                border: '1px solid rgba(255,255,255,0.1)',
-              },
-              '&:hover fieldset': {
-                border: '1px solid rgba(255,255,255,0.2)',
-              },
-              '&.Mui-focused fieldset': {
-                border: '2px solid #00ff88',
-              }
-            },
-            '& .MuiInputBase-input': {
-              color: '#fff',
-              '&::placeholder': {
-                color: 'rgba(255,255,255,0.5)',
-                opacity: 1
+              height: '35px',
+              '& .MuiInputBase-input': {
+                padding: '6px 14px',
+                height: '20px !important',
+                lineHeight: '20px',
+                fontSize: '0.85rem'
               }
             }
           }}
           InputProps={{
             endAdornment: (
               <IconButton 
+                size="small"
                 onClick={handleSend}
                 disabled={!message.trim() || loading}
                 sx={{
@@ -431,9 +419,9 @@ export const AdminChatBox = ({
                 }}
               >
                 {loading ? (
-                  <CircularProgress size={24} sx={{ color: '#00ff88' }} />
+                  <CircularProgress size={20} sx={{ color: '#00ff88' }} />
                 ) : (
-                  <SendIcon />
+                  <SendIcon fontSize="small" />
                 )}
               </IconButton>
             ),
