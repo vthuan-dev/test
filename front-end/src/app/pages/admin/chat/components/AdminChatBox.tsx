@@ -223,39 +223,43 @@ export const AdminChatBox = ({
     }
   }, [conversation?.id, socket]);
 
+  // Thêm useEffect để xử lý scroll
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      // Thêm setTimeout để đảm bảo scroll sau khi messages được render
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }, [messages]); // Chạy khi messages thay đổi
+
   return (
     <Box sx={{ 
       height: '100%',
       display: 'flex',
       flexDirection: 'column',
-      bgcolor: '#141728',
-      borderRadius: 2,
-      overflow: 'hidden',
       position: 'relative',
+      overflow: 'hidden' // Thêm overflow hidden cho container chính
     }}>
       <Box 
         ref={chatContainerRef}
         sx={{ 
           flex: 1,
-          overflow: 'auto',
-          p: 2,
+          overflowY: 'auto',
+          overflowX: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          gap: 1,
-          height: 'calc(100vh - 440px)',
+          gap: 2,
+          p: 2,
           '&::-webkit-scrollbar': {
-            width: '8px',
+            width: '6px'
           },
           '&::-webkit-scrollbar-track': {
-            background: 'rgba(255,255,255,0.05)',
-            borderRadius: '10px',
+            background: 'rgba(255,255,255,0.05)'
           },
           '&::-webkit-scrollbar-thumb': {
             background: 'rgba(255,255,255,0.1)',
-            borderRadius: '10px',
-            '&:hover': {
-              background: 'rgba(255,255,255,0.15)',
-            }
+            borderRadius: '3px'
           }
         }}
       >
@@ -365,16 +369,15 @@ export const AdminChatBox = ({
 
       <Box 
         sx={{ 
-          position: 'absolute',
+          position: 'sticky',
           bottom: 0,
           left: 0,
           right: 0,
-          p: 1,
           bgcolor: 'rgba(20,23,40,0.95)',
           borderTop: '1px solid rgba(255,255,255,0.05)',
           backdropFilter: 'blur(10px)',
+          p: 1.5,
           zIndex: 2,
-          height: '50px',
           display: 'flex',
           alignItems: 'center'
         }}
@@ -393,38 +396,48 @@ export const AdminChatBox = ({
           autoFocus
           sx={{
             '& .MuiOutlinedInput-root': {
-              height: '35px',
+              backgroundColor: 'rgba(255,255,255,0.03)',
+              borderRadius: '20px',
+              height: '40px',
+              transition: 'all 0.2s ease-in-out',
+              border: '1px solid rgba(255,255,255,0.05)',
+              
+              '&:hover': {
+                backgroundColor: 'rgba(255,255,255,0.05)',
+                borderColor: 'rgba(255,255,255,0.1)',
+              },
+              
+              '&.Mui-focused': {
+                backgroundColor: 'rgba(255,255,255,0.07)',
+                borderColor: '#00ff88',
+                boxShadow: '0 0 0 2px rgba(0,255,136,0.1)',
+              },
+
               '& .MuiInputBase-input': {
-                padding: '6px 14px',
-                height: '20px !important',
-                lineHeight: '20px',
-                fontSize: '0.85rem'
+                padding: '8px 14px',
+                height: '24px !important',
+                lineHeight: '24px',
+                fontSize: '0.9rem',
+                color: '#fff',
+              },
+
+              '& .MuiOutlinedInput-notchedOutline': {
+                border: 'none'
+              }
+            },
+
+            '& .MuiIconButton-root': {
+              color: '#00ff88',
+              marginRight: '4px',
+              
+              '&:hover': {
+                backgroundColor: 'rgba(0,255,136,0.1)',
+              },
+              
+              '&.Mui-disabled': {
+                color: 'rgba(255,255,255,0.2)'
               }
             }
-          }}
-          InputProps={{
-            endAdornment: (
-              <IconButton 
-                size="small"
-                onClick={handleSend}
-                disabled={!message.trim() || loading}
-                sx={{
-                  color: '#00ff88',
-                  '&:hover': {
-                    bgcolor: 'rgba(0,255,136,0.1)',
-                  },
-                  '&.Mui-disabled': {
-                    color: 'rgba(255,255,255,0.2)'
-                  }
-                }}
-              >
-                {loading ? (
-                  <CircularProgress size={20} sx={{ color: '#00ff88' }} />
-                ) : (
-                  <SendIcon fontSize="small" />
-                )}
-              </IconButton>
-            ),
           }}
         />
       </Box>
