@@ -99,16 +99,20 @@ export const AdminChatList: React.FC<AdminChatListProps> = ({
 
   return (
     <Box sx={{ 
-      height: '100%', 
+      height: 'calc(100vh - 280px)',
       bgcolor: '#141728',
       borderRadius: 2,
       overflow: 'hidden',
       boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-      border: '1px solid rgba(255,255,255,0.05)'
+      border: '1px solid rgba(255,255,255,0.05)',
+      display: 'flex',
+      flexDirection: 'column'
     }}>
       <List sx={{ 
-        height: '100%', 
-        overflow: 'auto',
+        flex: 1,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        height: '100%',
         p: 0,
         '&::-webkit-scrollbar': {
           width: '6px',
@@ -122,7 +126,9 @@ export const AdminChatList: React.FC<AdminChatListProps> = ({
           '&:hover': {
             background: 'rgba(255,255,255,0.15)',
           }
-        }
+        },
+        maxHeight: 'calc(100vh - 280px)',
+        minHeight: '200px'
       }}>
         {conversations.map((conversation) => (
           <ListItem 
@@ -261,12 +267,17 @@ export const AdminChatList: React.FC<AdminChatListProps> = ({
       {loading && (
         <Box 
           sx={{ 
-            height: '100%',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             bgcolor: 'rgba(20,23,40,0.8)',
-            backdropFilter: 'blur(10px)'
+            backdropFilter: 'blur(10px)',
+            zIndex: 10
           }}
         >
           <CircularProgress sx={{ color: '#00ff88' }} />

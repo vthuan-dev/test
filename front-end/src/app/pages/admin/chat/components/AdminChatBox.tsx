@@ -228,10 +228,10 @@ export const AdminChatBox = ({
       height: '100%',
       display: 'flex',
       flexDirection: 'column',
-      bgcolor: '#141728', // Dark theme background
+      bgcolor: '#141728',
       borderRadius: 2,
       overflow: 'hidden',
-      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+      position: 'relative',
     }}>
       <Box 
         ref={chatContainerRef}
@@ -239,6 +239,7 @@ export const AdminChatBox = ({
           flex: 1,
           overflow: 'auto',
           p: 2,
+          pb: '80px',
           display: 'flex',
           flexDirection: 'column',
           gap: 1,
@@ -364,10 +365,15 @@ export const AdminChatBox = ({
 
       <Box 
         sx={{ 
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
           p: 2,
-          bgcolor: 'rgba(255,255,255,0.02)',
+          bgcolor: 'rgba(20,23,40,0.95)',
           borderTop: '1px solid rgba(255,255,255,0.05)',
-          backdropFilter: 'blur(10px)'
+          backdropFilter: 'blur(10px)',
+          zIndex: 2
         }}
       >
         <TextField
@@ -425,27 +431,12 @@ export const AdminChatBox = ({
                 }}
               >
                 {loading ? (
-                  <CircularProgress 
-                    size={24}
-                    sx={{
-                      color: '#00ff88'
-                    }}
-                  />
+                  <CircularProgress size={24} sx={{ color: '#00ff88' }} />
                 ) : (
                   <SendIcon />
                 )}
               </IconButton>
             ),
-          }}
-          onBlur={(e) => {
-            // Prevent losing focus
-            e.preventDefault();
-            focusInput();
-          }}
-          onClick={(e) => {
-            // Ensure focus when clicking on input
-            e.stopPropagation();
-            focusInput();
           }}
         />
       </Box>

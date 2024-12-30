@@ -283,7 +283,7 @@ const AdminChat = () => {
             </Grid>
 
             {/* Khung chat chính */}
-            <Grid item xs={8}>
+            <Grid item xs={8} sx={{ height: '100%', position: 'relative' }}>
               <Paper 
                 elevation={0} 
                 sx={{ 
@@ -297,11 +297,16 @@ const AdminChat = () => {
               >
                 {selectedConversation ? (
                   <>
-                    {/* Header chat */}
+                    {/* Header chat - fixed position */}
                     <Box sx={{ 
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      zIndex: 10,
                       p: 2,
                       borderBottom: '1px solid rgba(255,255,255,0.05)',
-                      bgcolor: 'rgba(255,255,255,0.02)',
+                      bgcolor: 'rgba(20,23,40,0.95)',
                       backdropFilter: 'blur(10px)',
                       display: 'flex',
                       alignItems: 'center',
@@ -345,13 +350,12 @@ const AdminChat = () => {
                       </Box>
                     </Box>
 
-                    {/* Messages container */}
+                    {/* Messages container - điều chỉnh padding-top */}
                     <Box sx={{ 
-                      position: 'absolute',
-                      top: '73px',
-                      bottom: '0',
-                      left: 0,
-                      right: 0,
+                      flexGrow: 1,
+                      height: '100%',
+                      pt: '73px', // Thêm padding-top bằng chiều cao của header
+                      pb: '80px', // Thêm padding-bottom để tránh bị che bởi input
                       overflow: 'hidden',
                       display: 'flex',
                       flexDirection: 'column'
