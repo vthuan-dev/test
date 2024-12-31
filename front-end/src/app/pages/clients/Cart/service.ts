@@ -41,20 +41,30 @@ export const deleteCart = () => {
       },
    });
 };
-
 export const createOrder = ({ onSuccess, onError }: any) => {
+   const queryClient = useQueryClient();
+   
    return useMutation({
       mutationFn: (data: any) => postRequest('/order/add', data),
       onSuccess: (response) => {
-         if (onSuccess) onSuccess(response.data);
+         // Refresh cart data
+         queryClient.refetchQueries({ queryKey: ['Cart'] });
+         
+         // Call onSuccess callback with full response
+         if (onSuccess) onSuccess(response);
       },
       onError: (error: any) => {
-         if (onError) onError(error);
+         // Handle error with default message if no custom handler
+         if (onError) {
+            onError(error);
+         } else {
+            const errorMessage = error?.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại!';
+            toast.error('Lỗi: ' + errorMessage);
+         }
          console.error('Create order error:', error?.response?.data || error);
       }
    });
 };
-
 export const getRoomOrderTimeline = (data: any) => {
    const isRoomIdsValid = Array.isArray(data.roomIds) && data.roomIds.length > 0;
 

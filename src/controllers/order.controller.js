@@ -44,6 +44,23 @@ const checkRoomTimeConflict = async (connection, roomId, startTime, endTime, exc
   return conflicts;
 };
 
+// Thêm hàm kiểm tra thời gian
+const validateBookingTime = (startTime, endTime) => {
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+  const diffMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+  
+  if (diffMinutes < 60) {
+    throw new Error('Thời gian đặt phòng phải ít nhất 1 giờ');
+  }
+  
+  if (start >= end) {
+    throw new Error('Thời gian kết thúc phải sau thời gian bắt đầu');
+  }
+  
+  return true;
+};
+
 export const getAll = async (req, res) => {
   try {
     const { query } = req;
@@ -78,21 +95,59 @@ export const create = async (req, res) => {
   try {
     const { rooms, products, username, email, payment_method, ...remainBody } = req.body;
     
-    // Kiểm tra xung đột thời gian cho tất cả các phòng
+    // Thêm validation thời gian cho mỗi phòng
     if (rooms && rooms.length > 0) {
       for (const room of rooms) {
-        const conflicts = await checkRoomTimeConflict(
-          connection,
-          room.room_id,
-          room.start_time,
-          room.end_time
-        );
+        try {
+          validateBookingTime(room.start_time, room.end_time);
+          
+          // Kiểm tra xung đột thời gian
+          const conflicts = await checkRoomTimeConflict(
+            connection,
+            room.room_id,
+            room.start_time,
+            room.end_time
+          );
 
-        if (conflicts.length > 0) {
+          if (conflicts.length > 0) {
+            throw new Error('Phòng đã được đặt trong khoảng thời gian này');
+          }
+          
+          // Lấy thông tin phòng và user
+          const [roomInfo] = await connection.query(`
+            SELECT price, room_name FROM room WHERE id = ?
+          `, [room.room_id]);
+
+          if (!roomInfo.length) {
+            throw new Error(`Không tìm thấy phòng với ID ${room.room_id}`);
+          }
+
+          // Tính giá phòng
+          const { totalHours, totalPrice } = calculateRoomPrice({
+            startTime: room.start_time,
+            endTime: room.end_time,
+            roomPrice: roomInfo[0].price
+          });
+
+          totalOrderPrice += totalPrice;
+
+          // Lưu chi tiết đặt phòng
+          await connection.query(`
+            INSERT INTO room_order_detail 
+            (order_id, room_id, start_time, end_time, total_time, total_price)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `, [
+            order_id,
+            room.room_id,
+            room.start_time,
+            room.end_time,
+            totalHours,
+            totalPrice
+          ]);
+        } catch (error) {
           await connection.rollback();
           return responseError(res, {
-            message: `Phòng ${room.room_name || room.room_id} đã được đặt trong khoảng thời gian này`,
-            conflicts: conflicts
+            message: `Lỗi khi xử lý phòng: ${error.message}`
           });
         }
       }
@@ -117,6 +172,20 @@ export const create = async (req, res) => {
     if (rooms && rooms.length > 0) {
       for (const room of rooms) {
         try {
+          validateBookingTime(room.start_time, room.end_time);
+          
+          // Kiểm tra xung đột thời gian
+          const conflicts = await checkRoomTimeConflict(
+            connection,
+            room.room_id,
+            room.start_time,
+            room.end_time
+          );
+
+          if (conflicts.length > 0) {
+            throw new Error('Phòng đã được đặt trong khoảng thời gian này');
+          }
+          
           // Lấy thông tin phòng và user
           const [roomInfo] = await connection.query(`
             SELECT price, room_name FROM room WHERE id = ?
@@ -1038,45 +1107,14 @@ export const extendRoomTime = async (req, res) => {
 };
 
 // Thêm hàm tính giá
-const calculateTotalPrice = (startTime, endTime, roomPrice, isVip, vipEndDate) => {
+const calculateTotalPrice = (startTime, endTime, roomPrice) => {
   const start = new Date(startTime);
   const end = new Date(endTime);
   const totalHours = Math.ceil((end - start) / (1000 * 60 * 60));
-  const days = Math.floor(totalHours / 24);
-  const remainingHours = totalHours % 24;
   
-  let totalPrice = 0;
-  
-  // 1. Tính giá theo ngày
-  if (days > 0) {
-    let dailyRate = roomPrice * 24;
-    if (days >= 30) {
-      dailyRate *= 0.7; // Giảm 30% cho thuê >= 30 ngày
-    } else if (days >= 7) {
-      dailyRate *= 0.75; // Giảm 25% cho thuê >= 7 ngày
-    } else {
-      dailyRate *= 0.8; // Giảm 20% cho thuê theo ngày
-    }
-    totalPrice += days * dailyRate;
-  }
-
-  // 2. Tính giá giờ lẻ
-  if (remainingHours > 0) {
-    let hourlyRate = roomPrice;
-    if (remainingHours >= 5) {
-      hourlyRate *= 0.95; // Giảm 5% nếu thuê từ 5 giờ trở lên
-    }
-    totalPrice += remainingHours * hourlyRate;
-  }
-
-  // 3. Áp dụng giảm giá VIP
-  if (isVip && new Date(vipEndDate) > new Date()) {
-    totalPrice *= 0.9; // Giảm thêm 10% cho VIP
-  }
-
   return {
     totalHours,
-    totalPrice: Math.round(totalPrice / 1000) * 1000 // Làm tròn đến 1000
+    totalPrice: totalHours * roomPrice // Giá phòng * số giờ, không giảm giá
   };
 };
 
@@ -1126,9 +1164,7 @@ export const approveExtendRoom = async (req, res) => {
       const { totalHours, totalPrice } = calculateTotalPrice(
         request.start_time,
         newEndTime,
-        request.room_price,
-        request.is_vip,
-        request.vip_end_date
+        request.room_price
       );
 
       // Cập nhật room_order_detail
