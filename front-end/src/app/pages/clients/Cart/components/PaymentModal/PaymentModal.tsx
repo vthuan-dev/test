@@ -76,30 +76,88 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, from, room
       from.reset();
    };
 
-   const { mutate } = createOrder({ handleClose });
+   const { mutate } = createOrder({
+      onSuccess: handleClose,
+      onError: (error: any) => {
+         // Hiển thị lỗi từ backend
+         const errorMessage = error?.response?.data?.message || 'Có lỗi xảy ra khi tạo đơn hàng';
+         const conflicts = error?.response?.data?.conflicts;
+
+         if (conflicts && conflicts.length > 0) {
+            // Nếu có thông tin về xung đột thời gian, hiển thị chi tiết
+            const conflictMessages = conflicts.map((c: any) => c.conflictMessage).join('\n');
+            toast.error(
+               <div>
+                  <p>{errorMessage}</p>
+                  <p style={{fontSize: '0.9em', marginTop: '8px'}}>{conflictMessages}</p>
+               </div>
+            );
+         } else {
+            // Hiển thị lỗi thông thường
+            toast.error(errorMessage);
+         }
+      }
+   });
 
    const handlePaymentMethodChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       setPaymentMethod(event.target.value as any);
    };
 
    const handleRoomChange = (index: number, field: 'start_time' | 'end_time', value: Date | null) => {
+      if (!value) return;
+
       const newRooms = [...watch('rooms')];
       const currentRoom = newRooms[index];
+      const selectedTime = dayjs(value);
 
-      if (field === 'start_time' && value) {
-         const totalTimeInHours = currentRoom.total_time || 1;
-         const end_time = new Date(value.getTime() + totalTimeInHours * 60 * 60 * 1000);
-         console.log(end_time);
-         setValue(`rooms[${index}].start_time`, dayjs(value).format('YYYY-MM-DD HH:mm:ss'));
-         setValue(`rooms[${index}].end_time`, dayjs(end_time).format('YYYY-MM-DD HH:mm:ss'));
-      } else if (field === 'end_time' && value) {
-         const startTime = currentRoom.start_time;
-         if (startTime) {
-            const totalTimeInMilliseconds = value.getTime() - new Date(startTime).getTime();
-            const totalTimeInHours = Math.max(1, totalTimeInMilliseconds / (1000 * 60 * 60));
+      // Kiểm tra xung đột thời gian với các đơn đặt phòng hiện có
+      const checkTimeConflict = () => {
+         if (!dataRoomOrderTimeline || !currentRoom) return false;
+         
+         const roomTimeline = dataRoomOrderTimeline.find(
+            (item: any) => item.room_id === currentRoom.room_id
+         );
 
-            setValue(`rooms[${index}].total_time`, totalTimeInHours);
-            setValue(`rooms[${index}].end_time`, dayjs(value).format('YYYY-MM-DD HH:mm:ss'));
+         if (!roomTimeline?.bookings) return false;
+
+         return roomTimeline.bookings.some((booking: any) => {
+            const bookingStart = dayjs(booking.start_time);
+            const bookingEnd = dayjs(booking.end_time);
+            const newStart = field === 'start_time' ? selectedTime : dayjs(currentRoom.start_time);
+            const newEnd = field === 'end_time' ? selectedTime : dayjs(currentRoom.end_time);
+
+            return (
+               (newStart.isBetween(bookingStart, bookingEnd, null, '[]')) ||
+               (newEnd.isBetween(bookingStart, bookingEnd, null, '[]')) ||
+               (newStart.isBefore(bookingStart) && newEnd.isAfter(bookingEnd))
+            );
+         });
+      };
+
+      if (checkTimeConflict()) {
+         toast.error('Thời gian này đã được đặt. Vui lòng chọn thời gian khác!');
+         return;
+      }
+
+      // Cập nhật thời gian nếu hợp lệ
+      if (field === 'start_time') {
+         setValue(`rooms[${index}].start_time`, selectedTime.format('YYYY-MM-DD HH:mm:ss'));
+         const end_time = selectedTime.add(1, 'hour');
+         setValue(`rooms[${index}].end_time`, end_time.format('YYYY-MM-DD HH:mm:ss'));
+         setValue(`rooms[${index}].total_time`, 1);
+      } else if (field === 'end_time') {
+         const startTime = dayjs(currentRoom.start_time);
+         
+         if (selectedTime.isAfter(startTime)) {
+            setValue(`rooms[${index}].end_time`, selectedTime.format('YYYY-MM-DD HH:mm:ss'));
+            const diffHours = selectedTime.diff(startTime, 'hour', true);
+            const roundedHours = Math.ceil(diffHours * 2) / 2;
+            setValue(`rooms[${index}].total_time`, roundedHours);
+         } else {
+            toast.error('Thời gian kết thúc phải sau thời gian bắt đầu!');
+            const newEndTime = dayjs(startTime).add(1, 'hour');
+            setValue(`rooms[${index}].end_time`, newEndTime.format('YYYY-MM-DD HH:mm:ss'));
+            setValue(`rooms[${index}].total_time`, 1);
          }
       }
    };
