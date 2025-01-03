@@ -68,8 +68,8 @@ export const findById = async (req, res) => {
     const query = `
       SELECT room.id AS room_id, room.room_name, room.status AS room_status, room.position,
              room.image_url, room.capacity, room.price AS room_price, room.description AS room_description,
-             desktop.id AS desktop_id, desktop.desktop_name, desktop.price AS desktop_price, 
-             desktop.status AS desktop_status, desktop.description AS desktop_description
+             desktop.id AS desktop_id, desktop.desktop_name, desktop.price, 
+             desktop.status, desktop.description
       FROM cybergame.room
       LEFT JOIN cybergame.desktop ON room.id = desktop.room_id
       WHERE room.id = ?;
@@ -80,39 +80,45 @@ export const findById = async (req, res) => {
 
     // Check if room exists
     if (!result || result.length === 0) {
-      return responseNotFound(res);
+      return responseError(res, {
+        message: "Không tìm thấy phòng",
+        statusCode: 404
+      });
     }
 
     // Format the response data
     const roomData = {
       room_id: result[0].room_id,
       room_name: result[0].room_name,
-      room_status: result[0].room_status,
+      status: result[0].room_status,
       position: result[0].position,
       image_url: result[0].image_url,
       capacity: result[0].capacity,
-      room_price: result[0].room_price,
-      room_description: result[0].room_description,
+      price: result[0].room_price,
+      description: result[0].room_description,
       desktops: result
+        .filter(item => item.desktop_id !== null)  // Lọc bỏ các bản ghi không có desktop
         .map((desktop) => ({
           desktop_id: desktop.desktop_id,
           desktop_name: desktop.desktop_name,
-          desktop_price: desktop.desktop_price,
-          desktop_status: desktop.desktop_status,
-          desktop_description: desktop.desktop_description,
+          price: desktop.price,
+          status: desktop.status,
+          description: desktop.description || ''  // Đảm bảo description không null
         }))
-        .filter((desktop) => desktop.desktop_id !== null), // Filter out empty desktop records
     };
 
-    const data = {
+    return responseSuccess(res, {
       message: "Lấy dữ liệu thành công",
-      data: roomData,
-    };
+      data: roomData
+    });
 
-    return responseSuccess(res, data);
   } catch (error) {
     console.error("Error:", error);
-    return responseError(res, error);
+    return responseError(res, {
+      message: "Lỗi khi lấy thông tin phòng",
+      error: error.message,
+      statusCode: 500
+    });
   }
 };
 
