@@ -48,3 +48,14 @@ export const getRom = () => {
       queryFn: () => getRequest(API_ROUTE.ROOM + '?' + queryParam),
    });
 };
+
+export const getRoomDetail = async (roomId: number) => {
+   try {
+      const response = await getRequest(`/room/client/room-detail/${roomId}`);
+      console.log('API Response:', response); // Thêm log để debug
+      return response;
+   } catch (error) {
+      console.error('Error fetching room detail:', error);
+      throw error;
+   }
+};

@@ -222,43 +222,69 @@ export const getAllRoomCountDesktop = async (req, res) => {
     throw error;
   }
 };
+
 export const getAllTimeLine = async (req, res) => {
   try {
-
-    // Câu truy vấn SQL
+    // Câu truy vấn SQL đã được cải thiện
     const query = ` 
     SELECT 
-    room.id,
-    room.room_name, 
-    room.capacity,
-    COUNT(DISTINCT desktop.room_id) AS desktop_count,
-    GROUP_CONCAT(
-        CONCAT(
-            DATE_FORMAT(rod.start_time, '%d-%m-%Y %H:%i')," - ",
-             DATE_FORMAT(rod.end_time, '%d-%m-%Y %H:%i')
-        ) SEPARATOR ';'
-    ) AS booking_times
-FROM cybergame.room
-LEFT JOIN cybergame.desktop ON room.id = desktop.room_id
-LEFT JOIN cybergame.room_order_detail rod ON room.id = rod.room_id
-WHERE rod.start_time > NOW()
-GROUP BY 
-    room.id, 
-    room.room_name, 
-    room.capacity
-ORDER BY room.id;
+      r.id,
+      r.room_name, 
+      r.capacity,
+      COUNT(DISTINCT d.id) AS desktop_count,
+      GROUP_CONCAT(
+        DISTINCT
+        CASE 
+          WHEN rod.start_time IS NOT NULL THEN
+            CONCAT(
+              DATE_FORMAT(rod.start_time, '%d-%m-%Y %H:%i'), 
+              ' - ',
+              DATE_FORMAT(rod.end_time, '%d-%m-%Y %H:%i'),
+              ' (',
+              CASE o.status 
+                WHEN 'PENDING' THEN 'Chờ xác nhận'
+                WHEN 'CONFIRMED' THEN 'Đã xác nhận'
+                WHEN 'CHECKED_IN' THEN 'Đang sử dụng'
+                ELSE o.status 
+              END,
+              ')'
+            )
+          ELSE NULL
+        END
+        SEPARATOR ';'
+      ) AS booking_times
+    FROM room r
+    LEFT JOIN desktop d ON r.id = d.room_id
+    LEFT JOIN room_order_detail rod ON r.id = rod.room_id
+    LEFT JOIN orders o ON rod.order_id = o.id
+    WHERE (rod.start_time > NOW() OR rod.start_time IS NULL)
+      AND (o.status IN ('PENDING', 'CONFIRMED', 'CHECKED_IN') OR o.status IS NULL)
+    GROUP BY 
+      r.id, 
+      r.room_name, 
+      r.capacity
+    ORDER BY r.id;
     `;
 
     const [result] = await roomModel.connection.promise().query(query);
 
+    // Xử lý kết quả để loại bỏ null trong booking_times
+    const processedResult = result.map(room => ({
+      ...room,
+      booking_times: room.booking_times ? room.booking_times.split(';').filter(Boolean) : []
+    }));
+
     const data = {
       message: "Lấy dữ liệu thành công",
-      data: result,
+      data: processedResult,
     };
     return responseSuccess(res, data);
   } catch (error) {
     console.error("Error:", error);
-    throw error;
+    return responseError(res, {
+      message: "Lỗi khi lấy thông tin đặt phòng",
+      error: error.message
+    });
   }
 };
 
@@ -395,5 +421,90 @@ export const checkRoomInUse = async (req, res) => {
   } catch (error) {
     console.error("Check room in use error:", error);
     return responseError(res, error);
+  }
+};
+
+export const getRoomDetailForClient = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const query = `
+      SELECT 
+        r.id AS room_id, 
+        r.room_name,
+        r.image_url,
+        r.capacity,
+        r.price AS room_price,
+        r.description AS room_description,
+        r.status AS room_status,
+        d.id AS desktop_id,
+        d.desktop_name,
+        d.description AS desktop_description,
+        d.price AS desktop_price,
+        d.status AS desktop_status
+      FROM room r
+      LEFT JOIN desktop d ON r.id = d.room_id
+      WHERE r.id = ?
+    `;
+
+    const [result] = await roomModel.connection.promise().query(query, [id]);
+
+    if (!result || result.length === 0) {
+      return responseError(res, {
+        message: "Không tìm thấy phòng",
+        statusCode: 404
+      });
+    }
+
+    // Format response
+    const roomData = {
+      room_id: result[0].room_id,
+      room_name: result[0].room_name,
+      image_url: result[0].image_url,
+      capacity: result[0].capacity,
+      price: result[0].room_price,
+      description: result[0].room_description,
+      status: result[0].room_status,
+      total_desktops: result.filter(item => item.desktop_id !== null).length,
+      desktops: result
+        .filter(item => item.desktop_id !== null)
+        .map(desktop => {
+          // Xử lý specifications
+          let specifications = [];
+          try {
+            // Kiểm tra nếu là JSON string
+            if (desktop.desktop_description && desktop.desktop_description.startsWith('[')) {
+              specifications = JSON.parse(desktop.desktop_description);
+            } else if (desktop.desktop_description) {
+              // Nếu là string thường thì split theo dấu phẩy
+              specifications = desktop.desktop_description.split(',').map(spec => spec.trim());
+            }
+          } catch (e) {
+            console.error('Error parsing specifications:', e);
+            specifications = desktop.desktop_description ? [desktop.desktop_description] : [];
+          }
+
+          return {
+            desktop_id: desktop.desktop_id,
+            desktop_name: desktop.desktop_name,
+            price: desktop.desktop_price,
+            status: desktop.desktop_status,
+            specifications: specifications
+          };
+        })
+    };
+
+    return responseSuccess(res, {
+      message: "Lấy thông tin phòng thành công",
+      data: roomData
+    });
+
+  } catch (error) {
+    console.error("Error:", error);
+    return responseError(res, {
+      message: "Lỗi khi lấy thông tin phòng",
+      error: error.message,
+      statusCode: 500
+    });
   }
 };

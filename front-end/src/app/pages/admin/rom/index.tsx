@@ -56,8 +56,8 @@ const Rom = () => {
       const a = dataRooms.data.map(item=>{
          const bookTime = timeLine?.data.find(time=>time.id ===item.id)
          let time:string[] = []
-         if(bookTime?.booking_times){
-            time = bookTime.booking_times.split(';')
+         if(bookTime && Array.isArray(bookTime.booking_times)){
+            time = bookTime.booking_times
          }
          return {
             ...item,
@@ -150,7 +150,9 @@ const Rom = () => {
                                              {Number(room.price).toLocaleString()}đ / 1h
                                           </TableCell>
                                           <TableCell sx={{ borderBottom: '1px solid #d1cccc' }}>
-                                                {room?.time && room?.time.map((time:any) =><Typography variant='subtitle2'>{time}</Typography>)}
+                                                {room?.time && Array.isArray(room.time) && room.time.map((time: string, index: number) => (
+                                                   <Typography key={index} variant='subtitle2'>{time}</Typography>
+                                                ))}
                                           </TableCell>
                                           <TableCell sx={{ borderBottom: '1px solid #d1cccc' }}>
                                              <Chip

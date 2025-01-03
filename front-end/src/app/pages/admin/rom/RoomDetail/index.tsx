@@ -29,24 +29,18 @@ const breadcrumbs = [
 // Component hiển thị thông tin chi tiết máy tính
 const DesktopDetail = ({ desktop, isRoomActive }: { desktop: any, isRoomActive: boolean }) => {
    const [open, setOpen] = useState(false);
-
    const handleOpen = () => setOpen(true);
    const handleClose = () => setOpen(false);
 
-   const isActive = isRoomActive || desktop.status === 'ACTIVE';
-
-   // Tạo mảng cấu hình từ description text
+   // Parse specifications
    const specifications = useMemo(() => {
       if (!desktop.description) return [];
-
-      // Phân tích chuỗi description thành các phần
       const parts = desktop.description.split(',').map(part => part.trim());
-      
       return [
-         { label: 'CPU', value: parts[0] || 'Chưa có thông tin' },
-         { label: 'RAM', value: parts[1] || 'Chưa có thông tin' },
-         { label: 'Card đồ họa', value: parts[2] || 'Chưa có thông tin' },
-         { label: 'Màn hình', value: parts[3] || 'Chưa có thông tin' }
+         { label: 'CPU', value: parts[0] || 'Chưa có thông tin', icon: '🔲' },
+         { label: 'RAM', value: parts[1] || 'Chưa có thông tin', icon: '💾' },
+         { label: 'Card đồ họa', value: parts[2] || 'Chưa có thông tin', icon: '🎮' },
+         { label: 'Màn hình', value: parts[3] || 'Chưa có thông tin', icon: '🖥️' }
       ];
    }, [desktop.description]);
 
@@ -55,47 +49,154 @@ const DesktopDetail = ({ desktop, isRoomActive }: { desktop: any, isRoomActive: 
          <Box 
             onClick={handleOpen}
             sx={{
-               border: '1px solid #ddd',
-               borderRadius: '8px',
-               p: 2,
+               border: '1px solid #e0e0e0',
+               borderRadius: '16px',
+               p: 3,
                cursor: 'pointer',
-               transition: 'all 0.3s',
-               backgroundColor: isActive ? 'rgba(46, 125, 50, 0.1)' : 'transparent',
+               transition: 'all 0.3s ease',
+               background: '#ffffff',
                '&:hover': {
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-                  transform: 'translateY(-2px)'
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
                }
             }}
          >
-            <Box display="flex" alignItems="center" gap={1}>
-               <ComputerIcon color={isActive ? 'success' : 'error'} />
-               <Typography variant="h6">{desktop.desktop_name}</Typography>
+            <Box display="flex" alignItems="center" gap={2} mb={2}>
+               <ComputerIcon 
+                  sx={{ 
+                     fontSize: 40,
+                     color: '#1976d2'
+                  }}
+               />
+               <Typography variant="h5" fontWeight="bold" color="#333">
+                  {desktop.desktop_name}
+               </Typography>
             </Box>
-            <Typography color={isActive ? 'success.main' : 'error.main'}>
-               {isActive ? 'Đang hoạt động' : 'Không hoạt động'}
-            </Typography>
-            <Typography color="text.secondary" sx={{ mt: 1 }}>
-               Giá: {desktop.price?.toLocaleString('vi-VN')}đ/giờ
+            <Typography 
+               sx={{ 
+                  color: '#666',
+                  fontSize: '1.1rem',
+                  fontWeight: 500
+               }}
+            >
+               {desktop.price?.toLocaleString('vi-VN')}đ/giờ
             </Typography>
          </Box>
 
-         <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-            <DialogTitle>
-               Chi tiết máy {desktop.desktop_name}
+         <Dialog 
+            open={open} 
+            onClose={handleClose} 
+            maxWidth="md" 
+            fullWidth
+            PaperProps={{
+               sx: {
+                  borderRadius: '20px',
+                  background: '#ffffff',
+                  color: '#333333',
+                  boxShadow: '0 10px 40px rgba(0,0,0,0.1)'
+               }
+            }}
+         >
+            <DialogTitle sx={{ 
+               p: 3,
+               display: 'flex',
+               alignItems: 'center',
+               gap: 2,
+               borderBottom: '1px solid #f0f0f0',
+               background: 'linear-gradient(to right, #f8f9fa, #ffffff)'
+            }}>
+               <ComputerIcon 
+                  sx={{ 
+                     fontSize: 40,
+                     color: '#1976d2'
+                  }}
+               />
+               <Typography variant="h4" fontWeight="bold" color="#333">
+                  {desktop.desktop_name}
+               </Typography>
             </DialogTitle>
-            <DialogContent>
-               <Box p={2}>
-                  <Typography><strong>Trạng thái:</strong> {isActive ? 'Đang hoạt động' : 'Không hoạt động'}</Typography>
-                  <Typography><strong>Giá:</strong> {desktop.price?.toLocaleString('vi-VN')}đ/giờ</Typography>
-                  
-                  <Box mt={2}>
-                     <Typography variant="h6" gutterBottom>Cấu hình máy:</Typography>
-                     {specifications.map((spec, index) => (
-                        <Box key={index} display="flex" gap={2} mt={1}>
-                           <Typography flex={1} fontWeight="bold">{spec.label}:</Typography>
-                           <Typography flex={2}>{spec.value}</Typography>
-                        </Box>
-                     ))}
+
+            <DialogContent sx={{ p: 3, background: '#ffffff' }}>
+               <Box 
+                  sx={{
+                     display: 'grid',
+                     gap: 3,
+                     gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))'
+                  }}
+               >
+                  <Box 
+                     sx={{
+                        p: 3,
+                        borderRadius: '16px',
+                        border: '1px solid #f0f0f0',
+                        background: '#f8f9fa',
+                        boxShadow: '0 2px 12px rgba(0,0,0,0.03)'
+                     }}
+                  >
+                     <Typography variant="h6" gutterBottom color="#333">
+                        Thông tin cơ bản
+                     </Typography>
+                     <Box sx={{ display: 'grid', gap: 2 }}>
+                        <Typography color="#555">
+                           <strong>Mã máy:</strong> #{desktop.desktop_id}
+                        </Typography>
+                        <Typography color="#555">
+                           <strong>Giá thuê:</strong> {desktop.price?.toLocaleString('vi-VN')}đ/giờ
+                        </Typography>
+                     </Box>
+                  </Box>
+
+                  <Box 
+                     sx={{
+                        p: 3,
+                        borderRadius: '16px',
+                        border: '1px solid #f0f0f0',
+                        background: '#f8f9fa',
+                        boxShadow: '0 2px 12px rgba(0,0,0,0.03)'
+                     }}
+                  >
+                     <Typography variant="h6" gutterBottom color="#333">
+                        Cấu hình chi tiết
+                     </Typography>
+                     <Box sx={{ display: 'grid', gap: 2 }}>
+                        {specifications.map((spec, index) => (
+                           <Box 
+                              key={index} 
+                              sx={{
+                                 display: 'flex',
+                                 alignItems: 'center',
+                                 gap: 2,
+                                 p: 2,
+                                 borderRadius: '12px',
+                                 background: '#ffffff',
+                                 border: '1px solid #f0f0f0'
+                              }}
+                           >
+                              <Box 
+                                 sx={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: '12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    background: '#f5f5f5',
+                                    fontSize: '1.2rem'
+                                 }}
+                              >
+                                 {spec.icon}
+                              </Box>
+                              <Box>
+                                 <Typography color="#666" fontSize="0.9rem">
+                                    {spec.label}
+                                 </Typography>
+                                 <Typography fontWeight="500" color="#333">
+                                    {spec.value}
+                                 </Typography>
+                              </Box>
+                           </Box>
+                        ))}
+                     </Box>
                   </Box>
                </Box>
             </DialogContent>

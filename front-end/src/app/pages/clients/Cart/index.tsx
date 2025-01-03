@@ -109,20 +109,30 @@ const Cart: React.FC = () => {
    const { data: timeLine } = getAllTimeline();
    console.log('timeLine:', timeLine)
 
-   const dataRender = useMemo(()=>{
-      const a = rooms.map(item=>{
-         const bookTime = timeLine?.data.find(time=>time.id === item.id)
-         let time:string[] = []
-         if(bookTime?.booking_times){
-            time = bookTime.booking_times.split(';')
+   const dataRender = useMemo(() => {
+      if (!rooms) return [];
+      const a = rooms.map(item => {
+         const bookTime = timeLine?.data.find(time => time.id === item.id);
+         let time: string[] = [];
+         
+         if (bookTime?.booking_times) {
+            // Nếu booking_times đã là array
+            if (Array.isArray(bookTime.booking_times)) {
+               time = [...new Set(bookTime.booking_times)];
+            } 
+            // Nếu là string
+            else if (typeof bookTime.booking_times === 'string') {
+               time = [...new Set(bookTime.booking_times.split(';').filter(Boolean))];
+            }
          }
+
          return {
             ...item,
             time
-         }
-      })
-      return a
-   },[rooms,timeLine])
+         };
+      });
+      return a;
+   }, [rooms, timeLine]);
 
    const onSubmitForm: SubmitHandler<PaymentModalType> = async (data) => {
       try {
@@ -158,18 +168,16 @@ const Cart: React.FC = () => {
                <Grid container spacing={2} sx={{ position: 'relative' }}>
                   <Grid item xs={8}>
                      {/* Giỏ Hàng Đặt Phòng */}
-                     {dataRender.map((room) => {
-                           return (
-                              <React.Fragment key={room.id}>
-                                 <RoomItem
-                                    room={room}
-                                    onDeleteRoom={handleDeleteRoom}
-                                    handleRoomQuantityChange={handleRoomQuantityChange}
-                                 />
-                                 <Divider sx={{ marginTop: 4, marginBottom: 4 }} />
-                              </React.Fragment>
-                           );
-                        })}
+                     {dataRender.map((room) => (
+                        <React.Fragment key={room.id}>
+                           <RoomItem
+                              room={room}
+                              onDeleteRoom={handleDeleteRoom}
+                              handleRoomQuantityChange={handleRoomQuantityChange}
+                           />
+                           <Divider sx={{ marginTop: 4, marginBottom: 4 }} />
+                        </React.Fragment>
+                     ))}
 
                      {/* Giỏ Hàng Sản Phẩm */}
                      {products.length > 0 && (
