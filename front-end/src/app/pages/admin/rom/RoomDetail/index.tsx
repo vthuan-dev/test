@@ -40,7 +40,7 @@ const RoomDetail = () => {
       try {
          const checkRoomInUse = await getRequest(`/room/check-in-use/${id}`);
          
-         if (checkRoomInUse.isInUse) {
+         if (checkRoomInUse.data.isInUse) {
             toast.warning('Không thể xóa phòng này vì đang có người đặt!');
             return;
          }
@@ -52,8 +52,11 @@ const RoomDetail = () => {
          await deleteRequest(`/room/${id}`);
          toast.success('Xóa phòng thành công');
          navigate(ROUTE_PATH.ADMIN_ROM);
+         
       } catch (error: any) {
-         toast.error(error?.response?.data?.message || 'Có lỗi xảy ra khi xóa phòng');
+         console.error('Delete room error:', error);
+         const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi xóa phòng';
+         toast.error(errorMessage);
       }
    };
 

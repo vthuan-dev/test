@@ -117,20 +117,28 @@ export const findById = async (req, res) => {
 };
 
 export const deleteById = async (req, res) => {
+  let connection;
   try {
+    connection = await roomModel.connection.promise();
     const { id } = req.params;
+    await connection.beginTransaction();
 
-    // Kiểm tra phòng có tồn tại
-    const room = await roomModel.findById(id);
-    if (!room) {
+    // 1. Kiểm tra phòng tồn tại
+    const [rooms] = await connection.query(
+      'SELECT * FROM room WHERE id = ?',
+      [id]
+    );
+
+    if (!rooms.length) {
+      await connection.rollback();
       return responseError(res, {
         message: "Không tìm thấy phòng",
         statusCode: 404
       });
     }
 
-    // Kiểm tra chi tiết về việc sử dụng phòng
-    const checkUsageQuery = `
+    // 2. Kiểm tra các ràng buộc
+    const checkQuery = `
       SELECT 
         (SELECT COUNT(*) FROM room_order_detail rod
          JOIN orders o ON rod.order_id = o.id
@@ -140,70 +148,41 @@ export const deleteById = async (req, res) => {
         (SELECT COUNT(*) FROM cart 
          WHERE room_id = ?) as cartItems
     `;
-    
-    const [[usage]] = await roomModel.connection
-      .promise()
-      .query(checkUsageQuery, [id, id]);
 
-    // Kiểm tra và trả về thông báo chi tiết
-    if (usage.activeBookings > 0) {
+    const [[usage]] = await connection.query(checkQuery, [id, id]);
+
+    if (usage.activeBookings > 0 || usage.cartItems > 0) {
+      await connection.rollback();
       return responseError(res, {
-        message: "Không thể xóa phòng vì đang có người đặt hoặc đang sử dụng",
-        details: {
-          activeBookings: usage.activeBookings
-        },
+        message: "Không thể xóa phòng vì đang được sử dụng hoặc có trong giỏ hàng",
         statusCode: 400
       });
     }
 
-    if (usage.cartItems > 0) {
-      return responseError(res, {
-        message: "Không thể xóa phòng vì đang có trong giỏ hàng của khách",
-        details: {
-          cartItems: usage.cartItems
-        },
-        statusCode: 400
-      });
-    }
-
-    // Thực hiện xóa theo thứ tự để tránh lỗi khóa ngoại
+    // 3. Thực hiện xóa theo thứ tự
     const deleteQueries = [
-      // 1. Xóa các mục trong giỏ hàng liên quan đến phòng
+      'DELETE FROM extend_room_requests WHERE room_order_id IN (SELECT id FROM room_order_detail WHERE room_id = ?)',
       'DELETE FROM cart WHERE room_id = ?',
-      
-      // 2. Xóa các máy tính trong phòng
       'DELETE FROM desktop WHERE room_id = ?',
-      
-      // 3. Xóa lịch sử đặt phòng đã hoàn thành
-      `DELETE rod FROM room_order_detail rod
-       JOIN orders o ON rod.order_id = o.id
-       WHERE rod.room_id = ? AND o.status = 'COMPLETED'`,
-      
-      // 4. Cuối cùng xóa phòng
+      'DELETE FROM room_order_detail WHERE room_id = ?',
       'DELETE FROM room WHERE id = ?'
     ];
 
-    // Thực hiện các câu query xóa trong transaction
-    await roomModel.connection.promise().beginTransaction();
-    
-    try {
-      for (const query of deleteQueries) {
-        await roomModel.connection.promise().query(query, [id]);
-      }
-      
-      await roomModel.connection.promise().commit();
-      
-      return responseSuccess(res, {
-        message: "Xóa phòng thành công",
-        data: { id }
-      });
-      
-    } catch (error) {
-      await roomModel.connection.promise().rollback();
-      throw error;
+    for (const query of deleteQueries) {
+      await connection.query(query, [id]);
     }
 
+    await connection.commit();
+    
+    return responseSuccess(res, {
+      message: "Xóa phòng thành công",
+      data: { id }
+    });
+
   } catch (error) {
+    if (connection) {
+      await connection.rollback();
+    }
     console.error("Error deleting room:", error);
     return responseError(res, {
       message: "Lỗi khi xóa phòng",
@@ -377,5 +356,38 @@ export const getAllRoomsWithOrders = async (req, res) => {
   } catch (error) {
     console.error("Error:", error);
     return res.status(500).json({ message: "Đã xảy ra lỗi", error });
+  }
+};
+
+export const checkRoomInUse = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const query = `
+      SELECT COUNT(*) as count
+      FROM room_order_detail rod
+      JOIN orders o ON rod.order_id = o.id
+      WHERE rod.room_id = ? 
+      AND o.status IN ('PENDING', 'CHECKED_IN')
+      AND (
+        NOW() BETWEEN rod.start_time AND rod.end_time
+        OR rod.start_time > NOW()
+      )
+    `;
+
+    const [[result]] = await roomModel.connection
+      .promise()
+      .query(query, [id]);
+
+    return responseSuccess(res, {
+      message: "Kiểm tra trạng thái phòng thành công",
+      data: {
+        isInUse: result.count > 0
+      }
+    });
+
+  } catch (error) {
+    console.error("Check room in use error:", error);
+    return responseError(res, error);
   }
 };
