@@ -166,8 +166,8 @@ const OrderDetail = () => {
       queryKey: ['available-rooms', selectedRoom?.start_time, selectedRoom?.end_time],
       queryFn: () => getRequest('/order-room-detail/available-rooms', {
          params: {
-            startTime: dayjs(selectedRoom?.start_time).utc().format('YYYY-MM-DD HH:mm:ss'),
-            endTime: dayjs(selectedRoom?.end_time).utc().format('YYYY-MM-DD HH:mm:ss')
+            startTime: dayjs(selectedRoom?.start_time).format('YYYY-MM-DD HH:mm:ss'),
+            endTime: dayjs(selectedRoom?.end_time).format('YYYY-MM-DD HH:mm:ss')
          }
       }),
       enabled: changeRoomOpen && !!selectedRoom,
@@ -217,30 +217,31 @@ const OrderDetail = () => {
          return;
       }
 
-      // Kiểm tra giá phòng mới có bằng giá phòng cũ không
-      const newRoom = availableRooms?.data?.find((room: any) => room.room_id === Number(newRoomId));
-      
-      // Lấy đơn giá của phòng hiện tại từ danh sách phòng có sẵn
-      const currentRoom = availableRooms?.data?.find((room: any) => room.room_id === selectedRoom.room_id);
-
-      if (newRoom && currentRoom && newRoom.price !== currentRoom.price) {
-         toast.error('Chỉ được đổi sang phòng có cùng giá tiền');
-         return;
-      }
-
       const orderId = Number(order?.order_id);
       const orderDetailId = Number(selectedRoom.id);
       const oldRoomId = Number(selectedRoom.room_id);
       const newRoomIdNum = Number(newRoomId);
 
-      // Sử dụng thời gian mới nếu có, nếu không sử dụng thời gian cũ
+      // Xử lý thời gian với múi giờ Việt Nam
       const startTime = newStartTime 
-         ? dayjs(newStartTime).utc().format('YYYY-MM-DD HH:mm:ss')
-         : dayjs(selectedRoom.start_time).utc().format('YYYY-MM-DD HH:mm:ss');
+         ? dayjs(newStartTime).format('YYYY-MM-DD HH:mm:ss')
+         : dayjs(selectedRoom.start_time).format('YYYY-MM-DD HH:mm:ss');
       
       const endTime = newEndTime
-         ? dayjs(newEndTime).utc().format('YYYY-MM-DD HH:mm:ss')
-         : dayjs(selectedRoom.end_time).utc().format('YYYY-MM-DD HH:mm:ss');
+         ? dayjs(newEndTime).format('YYYY-MM-DD HH:mm:ss')
+         : dayjs(selectedRoom.end_time).format('YYYY-MM-DD HH:mm:ss');
+
+      // Log để debug
+      console.log('Times before sending:', {
+         original: {
+            start: selectedRoom.start_time,
+            end: selectedRoom.end_time
+         },
+         new: {
+            start: startTime,
+            end: endTime
+         }
+      });
 
       const changeRoomData = {
          orderId,
@@ -251,7 +252,6 @@ const OrderDetail = () => {
          endTime
       };
 
-      console.log('Change room request data:', changeRoomData);
       mutateChangeRoom(changeRoomData);
    };
 
@@ -328,14 +328,9 @@ const OrderDetail = () => {
                                  type="datetime-local"
                                  label="Thời gian bắt đầu"
                                  fullWidth
-                                 value={newStartTime}
+                                 defaultValue={dayjs(selectedRoom.start_time).format('YYYY-MM-DDTHH:mm')}
                                  onChange={(e) => setNewStartTime(e.target.value)}
                                  InputLabelProps={{ shrink: true }}
-                                 sx={{ 
-                                    '& .MuiOutlinedInput-root': {
-                                       borderRadius: 2
-                                    }
-                                 }}
                               />
                            </Grid>
                            <Grid item xs={6}>
@@ -343,14 +338,9 @@ const OrderDetail = () => {
                                  type="datetime-local"
                                  label="Thời gian kết thúc"
                                  fullWidth
-                                 value={newEndTime}
+                                 defaultValue={dayjs(selectedRoom.end_time).format('YYYY-MM-DDTHH:mm')}
                                  onChange={(e) => setNewEndTime(e.target.value)}
                                  InputLabelProps={{ shrink: true }}
-                                 sx={{ 
-                                    '& .MuiOutlinedInput-root': {
-                                       borderRadius: 2
-                                    }
-                                 }}
                               />
                            </Grid>
                         </Grid>
