@@ -217,6 +217,17 @@ const OrderDetail = () => {
          return;
       }
 
+      // Kiểm tra giá phòng mới có bằng giá phòng cũ không
+      const newRoom = availableRooms?.data?.find((room: any) => room.room_id === Number(newRoomId));
+      
+      // Lấy đơn giá của phòng hiện tại từ danh sách phòng có sẵn
+      const currentRoom = availableRooms?.data?.find((room: any) => room.room_id === selectedRoom.room_id);
+
+      if (newRoom && currentRoom && newRoom.price !== currentRoom.price) {
+         toast.error('Chỉ được đổi sang phòng có cùng giá tiền');
+         return;
+      }
+
       const orderId = Number(order?.order_id);
       const orderDetailId = Number(selectedRoom.id);
       const oldRoomId = Number(selectedRoom.room_id);
@@ -363,7 +374,13 @@ const OrderDetail = () => {
                      <MenuItem 
                         key={room.room_id}
                         value={room.room_id}
-                        disabled={room.status === 'Có người đặt' || room.room_id === selectedRoom?.room_id}
+                        disabled={
+                           room.status === 'Có người đặt' || 
+                           room.room_id === selectedRoom?.room_id ||
+                           room.price !== availableRooms?.data?.find(
+                              (r: any) => r.room_id === selectedRoom?.room_id
+                           )?.price
+                        }
                         sx={{
                            py: 1.5,
                            px: 2,

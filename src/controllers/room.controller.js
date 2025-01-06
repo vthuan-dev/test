@@ -225,54 +225,58 @@ export const getAllRoomCountDesktop = async (req, res) => {
 
 export const getAllTimeLine = async (req, res) => {
   try {
-    // Câu truy vấn SQL đã được cải thiện
-    const query = ` 
-    SELECT 
-      r.id,
-      r.room_name, 
-      r.capacity,
-      COUNT(DISTINCT d.id) AS desktop_count,
-      GROUP_CONCAT(
-        DISTINCT
-        CASE 
-          WHEN rod.start_time IS NOT NULL THEN
-            CONCAT(
-              DATE_FORMAT(rod.start_time, '%d-%m-%Y %H:%i'), 
-              ' - ',
-              DATE_FORMAT(rod.end_time, '%d-%m-%Y %H:%i'),
-              ' (',
-              CASE o.status 
-                WHEN 'PENDING' THEN 'Chờ xác nhận'
-                WHEN 'CONFIRMED' THEN 'Đã xác nhận'
-                WHEN 'CHECKED_IN' THEN 'Đang sử dụng'
-                ELSE o.status 
-              END,
-              ')'
-            )
-          ELSE NULL
-        END
-        SEPARATOR ';'
-      ) AS booking_times
-    FROM room r
-    LEFT JOIN desktop d ON r.id = d.room_id
-    LEFT JOIN room_order_detail rod ON r.id = rod.room_id
-    LEFT JOIN orders o ON rod.order_id = o.id
-    WHERE (rod.start_time > NOW() OR rod.start_time IS NULL)
-      AND (o.status IN ('PENDING', 'CONFIRMED', 'CHECKED_IN') OR o.status IS NULL)
-    GROUP BY 
-      r.id, 
-      r.room_name, 
-      r.capacity
-    ORDER BY r.id;
+    const query = `
+      SELECT 
+        r.id,
+        r.room_name,
+        r.capacity,
+        COUNT(DISTINCT d.id) AS desktop_count,
+        GROUP_CONCAT(
+          DISTINCT
+          CASE 
+            WHEN rod.start_time IS NOT NULL 
+            AND o.status IN ('CONFIRMED', 'CHECKED_IN')
+            AND rod.end_time > NOW() 
+            THEN
+              CONCAT(
+                DATE_FORMAT(rod.start_time, '%d-%m-%Y %H:%i'), 
+                ' - ',
+                DATE_FORMAT(rod.end_time, '%d-%m-%Y %H:%i')
+              )
+          END
+          ORDER BY rod.start_time ASC
+          SEPARATOR ';'
+        ) AS booking_times,
+        IF(
+          EXISTS (
+            SELECT 1 
+            FROM room_order_detail rod2
+            JOIN orders o2 ON rod2.order_id = o2.id
+            WHERE rod2.room_id = r.id
+            AND o2.status IN ('CONFIRMED', 'CHECKED_IN')
+            AND rod2.end_time > NOW()
+          ),
+          'ACTIVE',
+          'INACTIVE'
+        ) as status
+      FROM room r
+      LEFT JOIN desktop d ON r.id = d.room_id
+      LEFT JOIN room_order_detail rod ON r.id = rod.room_id
+      LEFT JOIN orders o ON rod.order_id = o.id
+      GROUP BY r.id, r.room_name, r.capacity
+      ORDER BY r.id;
     `;
 
+    console.log("Executing query...");
     const [result] = await roomModel.connection.promise().query(query);
+    console.log("Raw database result:", result);
 
-    // Xử lý kết quả để loại bỏ null trong booking_times
     const processedResult = result.map(room => ({
       ...room,
       booking_times: room.booking_times ? room.booking_times.split(';').filter(Boolean) : []
     }));
+
+    console.log("Processed result:", processedResult);
 
     const data = {
       message: "Lấy dữ liệu thành công",
@@ -280,7 +284,7 @@ export const getAllTimeLine = async (req, res) => {
     };
     return responseSuccess(res, data);
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Error in getAllTimeLine:", error);
     return responseError(res, {
       message: "Lỗi khi lấy thông tin đặt phòng",
       error: error.message

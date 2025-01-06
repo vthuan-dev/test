@@ -49,24 +49,28 @@ const Rom = () => {
 
    const { data: dataRooms } = getRom(searchParams);
    const { data: timeLine } = getAllTimeline();
-   console.log('timeLine:', timeLine)
+   
+   console.log('Raw timeline data:', timeLine);
 
    const dataRender = useMemo(()=>{
       if(!dataRooms?.data) return [];
       const a = dataRooms.data.map(item=>{
          const bookTime = timeLine?.data.find(time=>time.id ===item.id)
+         console.log(`Room ${item.id} status:`, bookTime?.status);
          let time:string[] = []
          if(bookTime && Array.isArray(bookTime.booking_times)){
             time = bookTime.booking_times
          }
          return {
             ...item,
-            time
+            time,
+            status: bookTime?.status || 'INACTIVE'
          }
       })
+      console.log('Processed render data:', a);
       return a
    },[dataRooms,timeLine])
-   console.log(dataRender)
+
    // Default values for pagination
    const currentPage = searchParams.page ?? 1;
    const totalPage = dataRooms?.pagination?.totalPage ?? 1;
@@ -157,8 +161,8 @@ const Rom = () => {
                                           <TableCell sx={{ borderBottom: '1px solid #d1cccc' }}>
                                              <Chip
                                                 variant="outlined"
-                                                label={room.status === 'INACTIVE' ? 'Trống' : 'Đang sử dụng'}
-                                                color={room.status === 'INACTIVE' ? 'success' : 'error'}
+                                                label={room.status === 'ACTIVE' ? 'Đang sử dụng' : 'Trống'}
+                                                color={room.status === 'ACTIVE' ? 'error' : 'success'}
                                              />
                                           </TableCell>
 

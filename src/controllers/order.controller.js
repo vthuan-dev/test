@@ -93,66 +93,8 @@ export const create = async (req, res) => {
   await connection.beginTransaction();
 
   try {
-    const { rooms, products, username, email, payment_method, ...remainBody } = req.body;
+    const { rooms, products, username, email, payment_method, carts, ...remainBody } = req.body;
     
-    // Thêm validation thời gian cho mỗi phòng
-    if (rooms && rooms.length > 0) {
-      for (const room of rooms) {
-        try {
-          validateBookingTime(room.start_time, room.end_time);
-          
-          // Kiểm tra xung đột thời gian
-          const conflicts = await checkRoomTimeConflict(
-            connection,
-            room.room_id,
-            room.start_time,
-            room.end_time
-          );
-
-          if (conflicts.length > 0) {
-            throw new Error('Phòng đã được đặt trong khoảng thời gian này');
-          }
-          
-          // Lấy thông tin phòng và user
-          const [roomInfo] = await connection.query(`
-            SELECT price, room_name FROM room WHERE id = ?
-          `, [room.room_id]);
-
-          if (!roomInfo.length) {
-            throw new Error(`Không tìm thấy phòng với ID ${room.room_id}`);
-          }
-
-          // Tính giá phòng
-          const { totalHours, totalPrice } = calculateRoomPrice({
-            startTime: room.start_time,
-            endTime: room.end_time,
-            roomPrice: roomInfo[0].price
-          });
-
-          totalOrderPrice += totalPrice;
-
-          // Lưu chi tiết đặt phòng
-          await connection.query(`
-            INSERT INTO room_order_detail 
-            (order_id, room_id, start_time, end_time, total_time, total_price)
-            VALUES (?, ?, ?, ?, ?, ?)
-          `, [
-            order_id,
-            room.room_id,
-            room.start_time,
-            room.end_time,
-            totalHours,
-            totalPrice
-          ]);
-        } catch (error) {
-          await connection.rollback();
-          return responseError(res, {
-            message: `Lỗi khi xử lý phòng: ${error.message}`
-          });
-        }
-      }
-    }
-
     // Tạo order với trạng thái phù hợp dựa vào phương thức thanh toán
     const orderStatus = payment_method === 2 ? 'PENDING_PAYMENT' : 'CONFIRMED';
     const paymentStatus = payment_method === 2 ? 'UNPAID' : 'PAID';
@@ -162,13 +104,14 @@ export const create = async (req, res) => {
       ...remainBody,
       status: orderStatus,
       payment_status: paymentStatus,
-      payment_method: payment_method
+      payment_method: payment_method,
+      carts: JSON.stringify(carts) // Lưu danh sách cart IDs
     });
 
     const order_id = result?.insertId;
     let totalOrderPrice = 0;
 
-    // 1. Xử lý đặt phòng
+    // Thêm validation thời gian cho mỗi phòng
     if (rooms && rooms.length > 0) {
       for (const room of rooms) {
         try {
@@ -263,7 +206,20 @@ export const create = async (req, res) => {
       [totalOrderPrice, order_id]
     );
 
+    // Sau khi tạo đơn hàng thành công
     await connection.commit();
+
+    // Xóa các sản phẩm đã đặt khỏi giỏ hàng
+    if (carts && carts.length > 0) {
+      try {
+        await connection.query(
+          'DELETE FROM cart WHERE id IN (?)',
+          [carts]
+        );
+      } catch (error) {
+        console.error("Error deleting items from cart:", error);
+      }
+    }
 
     // Gửi email
     const sendEmail = {
@@ -274,7 +230,6 @@ export const create = async (req, res) => {
     };
     await sendMail(getOrderSuccessNotify(sendEmail));
 
-    // Trả về response với thông tin đầy đủ
     return responseSuccess(res, {
       message: "Tạo mới hóa đơn thành công",
       data: {
@@ -1404,7 +1359,7 @@ export const updateOrderAfterPayment = async (req, res) => {
     await connection.beginTransaction();
 
     if (vnp_ResponseCode === '00' && vnp_TransactionStatus === '00') {
-      // Thanh toán thành công - luôn set status là PAID
+      // Thanh toán thành công
       await connection.query(
         `UPDATE orders 
          SET status = ?, 
@@ -1413,6 +1368,21 @@ export const updateOrderAfterPayment = async (req, res) => {
          WHERE id = ?`,
         ['PAID', 'PAID', orderId]
       );
+
+      // Lấy danh sách cart_ids từ order
+      const [orderDetails] = await connection.query(
+        'SELECT carts FROM orders WHERE id = ?',
+        [orderId]
+      );
+
+      if (orderDetails[0]?.carts) {
+        const cartIds = JSON.parse(orderDetails[0].carts);
+        // Xóa các sản phẩm đã đặt khỏi giỏ hàng
+        await connection.query(
+          'DELETE FROM cart WHERE id IN (?)',
+          [cartIds]
+        );
+      }
 
       await connection.commit();
       return res.redirect(`/payment-success?orderId=${orderId}`);
