@@ -360,63 +360,93 @@ const OrderDetail = () => {
                      }
                   }}
                >
-                  {availableRooms?.data?.map((room: any) => (
-                     <MenuItem 
-                        key={room.room_id}
-                        value={room.room_id}
-                        disabled={
-                           room.status === 'Có người đặt' || 
-                           room.room_id === selectedRoom?.room_id ||
-                           room.price !== availableRooms?.data?.find(
-                              (r: any) => r.room_id === selectedRoom?.room_id
-                           )?.price
-                        }
-                        sx={{
-                           py: 1.5,
-                           px: 2,
-                           borderRadius: 1,
-                           mb: 0.5,
-                           '&:hover': {
-                              bgcolor: 'primary.lighter'
-                           },
-                           '&.Mui-disabled': {
-                              opacity: 0.7,
-                              bgcolor: 'grey.100'
-                           }
-                        }}
-                     >
-                        <Box sx={{ width: '100%' }}>
-                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                              <Typography variant="body2" fontWeight={500}>
-                                 {room.name}
-                              </Typography>
-                              <Typography 
-                                 variant="body2" 
-                                 color="primary.main"
-                                 fontWeight={500}
-                              >
-                                 {Number(room.price).toLocaleString()}đ/giờ
-                              </Typography>
+                  {availableRooms?.data?.map((room: any) => {
+                     const currentRoom = availableRooms?.data?.find(
+                        (r: any) => r.room_id === selectedRoom?.room_id
+                     );
+                     
+                     const isPriceDifferent = room.price !== currentRoom?.price;
+                     const isDisabled = room.status === 'Có người đặt' || 
+                                       room.room_id === selectedRoom?.room_id ||
+                                       isPriceDifferent;
+
+                     return (
+                        <MenuItem 
+                           key={room.room_id}
+                           value={room.room_id}
+                           disabled={isDisabled}
+                           sx={{
+                              py: 1.5,
+                              px: 2,
+                              borderRadius: 1,
+                              mb: 0.5,
+                              opacity: isDisabled ? 0.5 : 1,
+                              backgroundColor: isDisabled ? 'grey.100' : 'transparent',
+                              '&:hover': {
+                                 bgcolor: isDisabled ? 'grey.100' : 'primary.lighter'
+                              },
+                              '&.Mui-disabled': {
+                                 opacity: 0.5,
+                              },
+                              // Thêm border màu xanh cho phòng có thể đổi
+                              border: !isDisabled ? '1px solid' : 'none',
+                              borderColor: 'primary.main',
+                           }}
+                        >
+                           <Box sx={{ width: '100%' }}>
+                              <Box sx={{ 
+                                 display: 'flex', 
+                                 justifyContent: 'space-between', 
+                                 alignItems: 'center', 
+                                 mb: 0.5 
+                              }}>
+                                 <Typography 
+                                    variant="body2" 
+                                    fontWeight={!isDisabled ? 600 : 400}
+                                    color={!isDisabled ? 'text.primary' : 'text.secondary'}
+                                 >
+                                    {room.name}
+                                 </Typography>
+                                 <Typography 
+                                    variant="body2" 
+                                    color={isPriceDifferent ? 'error.main' : 'primary.main'}
+                                    fontWeight={!isDisabled ? 600 : 400}
+                                 >
+                                    {Number(room.price).toLocaleString()}đ/giờ
+                                    {isPriceDifferent && 
+                                       <Typography 
+                                          component="span" 
+                                          variant="caption" 
+                                          color="error" 
+                                          sx={{ ml: 0.5 }}
+                                       >
+                                          (Khác giá)
+                                       </Typography>
+                                    }
+                                 </Typography>
+                              </Box>
+                              
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                 <FiberManualRecordIcon 
+                                    sx={{ 
+                                       mr: 0.5, 
+                                       fontSize: 12,
+                                       color: room.status === 'Có người đặt' ? 'error.main' : 'success.main',
+                                       opacity: isDisabled ? 0.5 : 1
+                                    }} 
+                                 />
+                                 <Typography 
+                                    variant="caption"
+                                    color={room.status === 'Có người đặt' ? 'error.main' : 'success.main'}
+                                    sx={{ opacity: isDisabled ? 0.5 : 1 }}
+                                 >
+                                    {room.status}
+                                 </Typography>
+                              </Box>
                            </Box>
-                           
-                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <FiberManualRecordIcon 
-                                 sx={{ 
-                                    mr: 0.5, 
-                                    fontSize: 12,
-                                    color: room.status === 'Có người đặt' ? 'error.main' : 'success.main'
-                                 }} 
-                              />
-                              <Typography 
-                                 variant="caption"
-                                 color={room.status === 'Có người đặt' ? 'error.main' : 'success.main'}
-                              >
-                                 {room.status}
-                              </Typography>
-                           </Box>
-                        </Box>
-                     </MenuItem>
-                  ))}
+                        </MenuItem>
+                     );
+                  })}
                </TextField>
             </Box>
          </DialogContent>
